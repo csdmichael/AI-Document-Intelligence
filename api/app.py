@@ -132,24 +132,20 @@ def list_documents(
 def get_confidence_stats():
     """Get document count per confidence category."""
     container = get_cosmos_container()
-    query = (
-        "SELECT VALUE {\"confidenceCategory\": c.confidenceCategory, \"cnt\": COUNT(1)} "
-        "FROM c GROUP BY c.confidenceCategory"
-    )
-    items = list(container.query_items(query=query, enable_cross_partition_query=True))
+    query = "SELECT VALUE c.confidenceCategory FROM c"
+    categories = list(container.query_items(query=query, enable_cross_partition_query=True))
 
     stats = ConfidenceStats()
-    for item in items:
-        cat = item.get("confidenceCategory", "").lower()
-        cnt = item.get("cnt", 0)
-        if cat == "blue":
-            stats.blue = cnt
-        elif cat == "green":
-            stats.green = cnt
-        elif cat == "yellow":
-            stats.yellow = cnt
-        elif cat == "red":
-            stats.red = cnt
+    for cat in categories:
+        cat_lower = (cat or "").lower()
+        if cat_lower == "blue":
+            stats.blue += 1
+        elif cat_lower == "green":
+            stats.green += 1
+        elif cat_lower == "yellow":
+            stats.yellow += 1
+        elif cat_lower == "red":
+            stats.red += 1
     stats.total = stats.blue + stats.green + stats.yellow + stats.red
     return stats
 
