@@ -1,0 +1,30 @@
+# Azure Resource Configuration
+# All Azure resource identifiers and endpoints in one place.
+# Override any value with environment variables (see .env.example).
+
+storage:
+  account_name: "aistoragemyaacoub"
+  container_name: "tax-forms"
+  resource_id: "/subscriptions/86b37969-9445-49cf-b03f-d8866235171c/resourceGroups/ai-myaacoub/providers/Microsoft.Storage/storageAccounts/aistoragemyaacoub"
+
+cosmos_db:
+  account_name: "cosmos-ai-poc"
+  endpoint: "https://cosmos-ai-poc.documents.azure.com:443/"
+  database: "taxforms"
+  container: "documents"
+  partition_key: "/state"
+  throughput: 400
+  resource_id: "/subscriptions/86b37969-9445-49cf-b03f-d8866235171c/resourceGroups/ai-myaacoub/providers/Microsoft.DocumentDb/databaseAccounts/cosmos-ai-poc"
+
+ai_services:
+  endpoint: "https://001-ai-poc.cognitiveservices.azure.com/"
+  resource_group: "ai-myaacoub"
+
+ai_foundry:
+  endpoint: "https://001-ai-poc.services.ai.azure.com/api/projects/001-ai-proj"
+  project_name: "001-ai-proj"
+
+subscription:
+  id: "86b37969-9445-49cf-b03f-d8866235171c"
+  resource_group: "ai-myaacoub"
+  location: "eastus"

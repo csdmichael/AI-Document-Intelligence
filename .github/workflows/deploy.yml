@@ -1,0 +1,212 @@
+name: Deploy AI Document Intelligence Solution
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  AZURE_RESOURCE_GROUP: ai-myaacoub
+  AZURE_LOCATION: eastus
+  BICEP_FILE: infra/main.bicep
+  API_APP_NAME: api-taxforms
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  # -------------------------------------------------------------------
+  # 1. Provision Azure infrastructure
+  # -------------------------------------------------------------------
+  infra:
+    name: Provision Infrastructure
+    runs-on: ubuntu-latest
+    outputs:
+      cosmosEndpoint: ${{ steps.deploy.outputs.cosmosEndpoint }}
+      apiUrl: ${{ steps.deploy.outputs.apiUrl }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy Bicep
+        id: deploy
+        uses: azure/arm-deploy@v2
+        with:
+          resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP }}
+          template: ${{ env.BICEP_FILE }}
+          parameters: location=${{ env.AZURE_LOCATION }}
+          failOnStdErr: false
+
+  # -------------------------------------------------------------------
+  # 2. Generate PDFs and upload to Blob Storage
+  # -------------------------------------------------------------------
+  generate-and-upload:
+    name: Generate & Upload PDFs
+    runs-on: ubuntu-latest
+    needs: infra
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate 100 tax exemption PDFs
+        run: python scripts/generate_forms.py
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Upload PDFs to Blob Storage
+        run: python scripts/upload_to_blob.py
+
+  # -------------------------------------------------------------------
+  # 3. Parse documents with AI Document Intelligence
+  # -------------------------------------------------------------------
+  parse-documents:
+    name: Parse Documents
+    runs-on: ubuntu-latest
+    needs: [infra, generate-and-upload]
+    env:
+      AZURE_COSMOS_ENDPOINT: ${{ needs.infra.outputs.cosmosEndpoint }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Initialize Cosmos DB
+        run: python scripts/setup_cosmos.py
+
+      - name: Parse all tax forms
+        run: python scripts/parse_documents.py
+
+  # -------------------------------------------------------------------
+  # 4. Deploy API backend
+  # -------------------------------------------------------------------
+  deploy-api:
+    name: Deploy API
+    runs-on: ubuntu-latest
+    needs: infra
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install API dependencies
+        run: |
+          cd api
+          pip install -r requirements.txt
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.API_APP_NAME }}
+          package: .
+
+  # -------------------------------------------------------------------
+  # 5. Build and deploy UI
+  # -------------------------------------------------------------------
+  deploy-ui:
+    name: Deploy UI
+    runs-on: ubuntu-latest
+    needs: [infra, deploy-api]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install and build UI
+        working-directory: ui
+        env:
+          VITE_API_BASE_URL: ${{ needs.infra.outputs.apiUrl }}
+        run: |
+          npm install
+          npm run build
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Static Web App
+        uses: azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          action: upload
+          app_location: ui
+          output_location: dist
+
+  # -------------------------------------------------------------------
+  # 6. Smoke tests
+  # -------------------------------------------------------------------
+  test:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    needs: [deploy-api, parse-documents]
+    steps:
+      - name: Health check
+        run: |
+          API_URL="${{ needs.infra.outputs.apiUrl || format('https://{0}.azurewebsites.net', env.API_APP_NAME) }}"
+          echo "Testing API at $API_URL"
+
+          # Health endpoint
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/health")
+          echo "Health: $STATUS"
+          [ "$STATUS" = "200" ] || exit 1
+
+          # Documents endpoint
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/api/documents")
+          echo "Documents: $STATUS"
+          [ "$STATUS" = "200" ] || exit 1
+
+          # Stats endpoint
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/api/documents/stats")
+          echo "Stats: $STATUS"
+          [ "$STATUS" = "200" ] || exit 1
+
+          echo "All smoke tests passed!"

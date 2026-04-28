@@ -1,0 +1,10 @@
+azure-identity>=1.17.0
+azure-storage-blob>=12.22.0
+azure-ai-documentintelligence>=1.0.0
+azure-cosmos>=4.7.0
+azure-search-documents>=11.6.0
+reportlab>=4.2.0
+Pillow>=10.4.0
+faker>=28.0.0
+python-dotenv>=1.0.0
+pyyaml>=6.0.0

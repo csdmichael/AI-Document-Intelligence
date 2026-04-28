@@ -1,0 +1,75 @@
+"""Pydantic models for API request/response schemas."""
+
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime
+
+
+class FieldUpdate(BaseModel):
+    correctedValue: str
+    correctedBy: str
+
+
+class FieldResponse(BaseModel):
+    fieldName: str
+    extractedValue: str
+    confidence: float
+    confidenceCategory: str
+    correctedValue: Optional[str] = None
+    correctedBy: Optional[str] = None
+    correctedAt: Optional[str] = None
+
+
+class SectionResponse(BaseModel):
+    sectionName: str
+    sectionIndex: int
+    sectionConfidence: float
+    confidenceCategory: str
+    fields: list[FieldResponse]
+
+
+class DocumentSummary(BaseModel):
+    id: str
+    fileName: str
+    state: str
+    stateName: str
+    status: str
+    overallConfidence: float
+    confidenceCategory: str
+    totalSections: int
+    totalFields: int
+    parsedAt: Optional[str] = None
+
+
+class DocumentDetail(BaseModel):
+    id: str
+    fileName: str
+    state: str
+    stateName: str
+    blobUrl: str
+    status: str
+    overallConfidence: float
+    confidenceCategory: str
+    confidenceLabel: Optional[str] = None
+    sections: list[SectionResponse]
+    totalSections: int
+    totalFields: int
+    uploadedAt: Optional[str] = None
+    parsedAt: Optional[str] = None
+    reviewedBy: Optional[str] = None
+    reviewedAt: Optional[str] = None
+
+
+class ConfidenceStats(BaseModel):
+    blue: int = 0
+    green: int = 0
+    yellow: int = 0
+    red: int = 0
+    total: int = 0
+
+
+class BlobFile(BaseModel):
+    name: str
+    size: int
+    lastModified: str
+    url: str

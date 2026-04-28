@@ -1,0 +1,27 @@
+Use the following Azure resources:
+- Blob Storage Resource: /subscriptions/86b37969-9445-49cf-b03f-d8866235171c/resourceGroups/ai-myaacoub/providers/Microsoft.Storage/storageAccounts/aistoragemyaacoub
+- Azure AI Services Resource: https://001-ai-poc.cognitiveservices.azure.com/
+- AI Foundry EndPoint: https://001-ai-poc.services.ai.azure.com/api/projects/001-ai-proj
+- Cosmos DB: /subscriptions/86b37969-9445-49cf-b03f-d8866235171c/resourceGroups/ai-myaacoub/providers/Microsoft.DocumentDb/databaseAccounts/cosmos-ai-poc
+
+Generate 100 Tax Exemption pdf forms for different states in USA that are filled using handwriting for use case for Microsoft Customer (Garmin) and add them to data folder.
+Create a container called tax-forms in blob storage and upload pdf forms from data folder to it
+Leverage private VNET and private endpoint that exist for Blob Storage
+Use managed identity and list all commands in readme file to setup this project.
+Use AI Document Intelligence service to parse all tax forms, extract all field names & values by section. Include confidence score and roll it up by section then by document. This will help for human in loop to review documents based on these categories:
+- Confidence score > 0.9 -> Blue (Outstanding - Very high confidence)
+- Confidence score > 0.8 -> Green (high confidence)
+- Confidence score > 0.6 -> Yellow (Medium Confidence)
+-  Confidence score < 0.6 -> Red (Needs Review - Low confidence)
+Create a config folder and create separate config files for different purposes. E.g: Azure resource Ids, doc intelligence config, etc. Don't hard-code anything in code files.
+Implement best practices for document intelligence accuracy and to continually improve confidence score by retraining the model based on human in loop corrections
+Document best practices in readme for Document Intelligence.
+Create a DB in most relevant DB Management system (Azure Blob Storage or SQL Azure or Cosmos DB) to store parsed documents by field, section, confidence score, corrected value entered by human 
+Create a new project for UI to show list of documents before parsing and to show list of parsed documents grouped by confidence score (Blue/Green/Yellow/Red) at doc level with ability to drill through by section using similar confidence score category then by field and allow admin to edit field values. 
+Draw architecture diagram including private vnet, private endpoints, ai search, storage account, foundry agent in a png diagram with Azure official icons and store this architecture diagram in docs folder.
+Generate github actions workflow to deploy the whole solution, run it, test it and fix bugs.
+Refer architecture diagram in readme file. Include in readme
+Test project after provisioning all resources.
+Created MIT license file to copyright for Michael Yaacoub at Microsoft.
+
+

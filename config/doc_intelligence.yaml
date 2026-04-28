@@ -1,0 +1,94 @@
+# Document Intelligence Configuration
+# Model selection, confidence thresholds, and processing settings.
+
+model:
+  # Use prebuilt-document for general key-value extraction from forms.
+  # Switch to a custom model ID after training for higher accuracy.
+  model_id: "prebuilt-document"
+  # API version for the Document Intelligence SDK
+  api_version: "2024-11-30"
+
+confidence_thresholds:
+  blue:
+    min_score: 0.9
+    label: "Outstanding - Very high confidence"
+    color_hex: "#1565C0"
+  green:
+    min_score: 0.8
+    label: "High confidence"
+    color_hex: "#2E7D32"
+  yellow:
+    min_score: 0.6
+    label: "Medium confidence"
+    color_hex: "#F9A825"
+  red:
+    min_score: 0.0
+    label: "Needs Review - Low confidence"
+    color_hex: "#C62828"
+
+processing:
+  # Max concurrent requests (S0 tier supports up to 15)
+  max_concurrency: 10
+  # Retry settings for transient failures (429, 503)
+  max_retries: 3
+  retry_backoff_seconds: 2
+  # Timeout per document analysis (seconds)
+  analysis_timeout: 120
+
+# Field-to-section mapping for organizing extracted key-value pairs
+section_mapping:
+  purchaser_info:
+    section_name: "Purchaser Information"
+    keywords:
+      - "purchaser"
+      - "company"
+      - "dba"
+      - "buyer"
+      - "name"
+      - "address"
+      - "city"
+      - "state"
+      - "zip"
+      - "phone"
+  seller_info:
+    section_name: "Seller Information"
+    keywords:
+      - "seller"
+      - "vendor"
+  exemption_details:
+    section_name: "Exemption Details"
+    keywords:
+      - "exemption"
+      - "type"
+      - "reason"
+      - "effective"
+  property_description:
+    section_name: "Property Description"
+    keywords:
+      - "description"
+      - "property"
+      - "product"
+      - "annual"
+      - "amount"
+  tax_info:
+    section_name: "Tax Information"
+    keywords:
+      - "tax"
+      - "ein"
+      - "federal"
+      - "id"
+  certification:
+    section_name: "Certification & Signature"
+    keywords:
+      - "signature"
+      - "date"
+      - "title"
+      - "certif"
+
+retraining:
+  # Minimum corrections needed before exporting training data
+  min_corrections_for_export: 50
+  # Minimum labeled samples per form type for custom model training
+  min_samples_per_type: 5
+  # Target labeled samples for production accuracy
+  target_samples_per_type: 50

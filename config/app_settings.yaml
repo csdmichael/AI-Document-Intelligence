@@ -1,0 +1,25 @@
+# Application Configuration
+# API server, UI, and general application settings.
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  cors_origins:
+    - "*"
+  log_level: "info"
+
+ui:
+  dev_port: 3000
+  api_proxy: "http://localhost:8000"
+
+forms:
+  # Number of tax exemption PDFs to generate (2 per state = 100)
+  total_count: 100
+  forms_per_state: 2
+  output_dir: "data"
+  customer_name: "Garmin International, Inc."
+  customer_dba: "Garmin"
+  customer_address: "1200 East 151st Street"
+  customer_city_state_zip: "Olathe, KS 66062"
+  customer_phone: "(913) 397-8200"
+  customer_ein: "74-2081254"
