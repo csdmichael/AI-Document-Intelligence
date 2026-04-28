@@ -73,3 +73,11 @@ class BlobFile(BaseModel):
     size: int
     lastModified: str
     url: str
+
+
+class RetrainingStatus(BaseModel):
+    reviewedDocuments: int = 0
+    totalDocuments: int = 0
+    totalCorrections: int = 0
+    readyForTraining: bool = False
+    minimumRequired: int = 5

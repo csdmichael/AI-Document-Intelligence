@@ -18,7 +18,7 @@ import {
   IonFooter,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { folderOutline, documentTextOutline, informationCircleOutline } from 'ionicons/icons';
+import { gridOutline, documentTextOutline, informationCircleOutline } from 'ionicons/icons';
 
 @Component({
   selector: 'app-root',
@@ -54,13 +54,9 @@ import { folderOutline, documentTextOutline, informationCircleOutline } from 'io
           </ion-header>
           <ion-content>
             <ion-list>
-              <ion-item routerLink="/blobs" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" lines="full" detail="false" button>
-                <ion-icon name="folder-outline" slot="start"></ion-icon>
-                <ion-label>Blob Files</ion-label>
-              </ion-item>
-              <ion-item routerLink="/parsed" routerLinkActive="active" lines="full" detail="false" button>
-                <ion-icon name="document-text-outline" slot="start"></ion-icon>
-                <ion-label>Parsed Documents</ion-label>
+              <ion-item routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" lines="full" detail="false" button>
+                <ion-icon name="grid-outline" slot="start"></ion-icon>
+                <ion-label>Dashboard</ion-label>
               </ion-item>
             </ion-list>
           </ion-content>
@@ -104,6 +100,6 @@ export class AppComponent {
   currentYear = new Date().getFullYear();
 
   constructor() {
-    addIcons({ folderOutline, documentTextOutline, informationCircleOutline });
+    addIcons({ gridOutline, documentTextOutline, informationCircleOutline });
   }
 }

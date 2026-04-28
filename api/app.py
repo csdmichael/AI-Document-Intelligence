@@ -17,7 +17,7 @@ from api.config import (
 )
 from api.models import (
     FieldUpdate, DocumentSummary, DocumentDetail,
-    ConfidenceStats, BlobFile,
+    ConfidenceStats, BlobFile, RetrainingStatus,
 )
 
 app = FastAPI(
@@ -100,6 +100,7 @@ def list_documents(
     category: Optional[str] = Query(None, description="Filter by confidence category: Blue|Green|Yellow|Red"),
     state: Optional[str] = Query(None, description="Filter by state abbreviation"),
     status: Optional[str] = Query(None, description="Filter by status: pending|parsed|reviewed|approved"),
+    reviewed: Optional[bool] = Query(None, description="Filter by reviewed (true) or not reviewed (false)"),
 ):
     """List all parsed documents with optional filters."""
     container = get_cosmos_container()
@@ -115,6 +116,10 @@ def list_documents(
     if status:
         conditions.append("c.status = @status")
         params.append({"name": "@status", "value": status})
+    if reviewed is True:
+        conditions.append("(c.status = 'reviewed' OR c.status = 'approved')")
+    elif reviewed is False:
+        conditions.append("(c.status != 'reviewed' AND c.status != 'approved')")
 
     where_clause = " AND ".join(conditions)
     query = "SELECT c.id, c.fileName, c.state, c.stateName, c.status, " \
@@ -233,6 +238,71 @@ def approve_document(document_id: str, approved_by: str = Query(...)):
     container.upsert_item(doc)
 
     return {"message": "Document approved", "documentId": document_id}
+
+
+# ---------------------------------------------------------------------------
+# Retraining — Export reviewed docs for model fine-tuning
+# ---------------------------------------------------------------------------
+
+@app.get("/api/retraining/stats", response_model=RetrainingStatus)
+def get_retraining_stats():
+    """Get counts of reviewed/approved documents available for retraining."""
+    container = get_cosmos_container()
+    query = "SELECT VALUE c.status FROM c"
+    statuses = list(container.query_items(query=query, enable_cross_partition_query=True))
+
+    reviewed = sum(1 for s in statuses if s in ("reviewed", "approved"))
+    total_corrections = 0
+    if reviewed > 0:
+        corr_query = "SELECT VALUE c.sections FROM c WHERE c.status IN ('reviewed', 'approved')"
+        sections_list = list(container.query_items(query=corr_query, enable_cross_partition_query=True))
+        for sections in sections_list:
+            for section in sections:
+                for field in section.get("fields", []):
+                    if field.get("correctedValue"):
+                        total_corrections += 1
+
+    return RetrainingStatus(
+        reviewedDocuments=reviewed,
+        totalDocuments=len(statuses),
+        totalCorrections=total_corrections,
+        readyForTraining=reviewed >= 5,
+        minimumRequired=5,
+    )
+
+
+@app.post("/api/retraining/export")
+def export_training_data():
+    """Export reviewed documents with corrections as labeled training data."""
+    container = get_cosmos_container()
+    query = "SELECT * FROM c WHERE c.status IN ('reviewed', 'approved')"
+    docs = list(container.query_items(query=query, enable_cross_partition_query=True))
+
+    training_data = []
+    for doc in docs:
+        labeled_fields = []
+        for section in doc.get("sections", []):
+            for field in section.get("fields", []):
+                labeled_fields.append({
+                    "fieldName": field.get("fieldName"),
+                    "extractedValue": field.get("extractedValue"),
+                    "groundTruth": field.get("correctedValue") or field.get("extractedValue"),
+                    "wasCorrected": field.get("correctedValue") is not None,
+                    "originalConfidence": field.get("confidence"),
+                })
+        training_data.append({
+            "documentId": doc.get("id"),
+            "fileName": doc.get("fileName"),
+            "state": doc.get("state"),
+            "blobUrl": doc.get("blobUrl"),
+            "fields": labeled_fields,
+        })
+
+    return {
+        "exportedAt": datetime.now(timezone.utc).isoformat(),
+        "documentCount": len(training_data),
+        "documents": training_data,
+    }
 
 
 # ---------------------------------------------------------------------------

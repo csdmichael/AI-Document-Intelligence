@@ -18,6 +18,10 @@ Implement best practices for document intelligence accuracy and to continually i
 Document best practices in readme for Document Intelligence.
 Create a DB in most relevant DB Management system (Azure Blob Storage or SQL Azure or Cosmos DB) to store parsed documents by field, section, confidence score, corrected value entered by human 
 Create a new project for UI to show list of documents before parsing and to show list of parsed documents grouped by confidence score (Blue/Green/Yellow/Red) at doc level with ability to drill through by section using similar confidence score category then by field and allow admin to edit field values. 
+For ui, show each blob file and parsed document in same page so it is easier for user to review document and make corrections to parsed fields. The parsed does not return any data, fix this issue. 
+Group documents by category of confidence score then show kpi next to each section and aggregated score for all fields in the section and also show confidence score and kpi next to each field. Add ability to filter by reviewed versus not reviewed. 
+Leverage reviewed docs to retrain / tine doc intelligence model to improve its accuracy for future parsings.
+
 Draw architecture diagram including private vnet, private endpoints, ai search, storage account, foundry agent in a png diagram with Azure official icons and store this architecture diagram in docs folder.
 Generate github actions workflow to deploy the whole solution, run it, test it and fix bugs.
 Refer architecture diagram in readme file. Include in readme

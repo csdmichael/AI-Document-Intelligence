@@ -66,3 +66,11 @@ export const CATEGORY_LABELS: Record<string, string> = {
   Yellow: 'Medium (>60%)',
   Red: 'Needs Review (<60%)',
 };
+
+export interface RetrainingStatus {
+  reviewedDocuments: number;
+  totalDocuments: number;
+  totalCorrections: number;
+  readyForTraining: boolean;
+  minimumRequired: number;
+}
