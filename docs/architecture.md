@@ -11,7 +11,7 @@ graph LR
     subgraph Azure["Azure Subscription (ai-myaacoub)"]
 
         subgraph UI["Static Web App"]
-            ReactUI["React UI<br/>Document Review Portal"]
+            AngularUI["Angular Ionic UI<br/>Document Review Portal"]
         end
 
         subgraph API["App Service"]
@@ -47,8 +47,8 @@ graph LR
         end
     end
 
-    Admin --> ReactUI
-    ReactUI --> FastAPI
+    Admin --> AngularUI
+    AngularUI --> FastAPI
     FastAPI --> PE_Storage --> Blob
     FastAPI --> PE_Cosmos --> Cosmos
     FastAPI --> PE_AI --> DocIntel
@@ -72,7 +72,7 @@ graph LR
 2. **Upload**: PDFs uploaded to Azure Blob Storage `tax-forms` container via private endpoint
 3. **Parse**: AI Document Intelligence extracts fields, sections, and confidence scores
 4. **Store**: Results stored in Cosmos DB with hierarchical structure (document → section → field)
-5. **Review**: React UI displays documents grouped by confidence category (Blue/Green/Yellow/Red)
+5. **Review**: Angular Ionic UI displays documents grouped by confidence category (Blue/Green/Yellow/Red)
 6. **Correct**: Admin edits field values — corrections stored for model retraining
 7. **Search**: AI Search indexes parsed data for full-text queries
 

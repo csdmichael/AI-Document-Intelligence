@@ -1,6 +1,6 @@
 # AI Document Intelligence — Tax Form Processing
 
-End-to-end Azure solution that generates, parses, and reviews 100 handwritten-style tax exemption PDF forms across all 50 US states using **Azure AI Document Intelligence**, stores results in **Cosmos DB**, and provides a **React-based review portal** with human-in-the-loop corrections.
+End-to-end Azure solution that generates, parses, and reviews 100 handwritten-style tax exemption PDF forms across all 50 US states using **Azure AI Document Intelligence**, stores results in **Cosmos DB**, and provides an **Angular Ionic review portal** with human-in-the-loop corrections.
 
 Built for **Garmin International, Inc.** as the purchaser entity.
 
@@ -14,8 +14,8 @@ See the full architecture diagram with data flow details in [`docs/architecture.
 
 ```
 ┌──────────┐     ┌───────────┐     ┌─────────────────┐     ┌──────────┐
-│  React   │────▶│  FastAPI   │────▶│  Azure Blob     │────▶│  AI Doc  │
-│  UI      │     │  Backend   │     │  Storage (PE)   │     │  Intel.  │
+│ Angular  │────▶│  FastAPI   │────▶│  Azure Blob     │────▶│  AI Doc  │
+│ Ionic UI │     │  Backend   │     │  Storage (PE)   │     │  Intel.  │
 └──────────┘     └─────┬──────┘     └─────────────────┘     └────┬─────┘
                        │                                         │
                        ▼                                         ▼
@@ -34,7 +34,7 @@ See the full architecture diagram with data flow details in [`docs/architecture.
 | Results DB | Cosmos DB (`cosmos-ai-poc`) | Store parsed results + human corrections |
 | Search | Azure AI Search | Full-text search across parsed documents |
 | API | App Service (Python) | FastAPI backend with CRUD operations |
-| UI | Static Web App | React review portal with drill-down |
+| UI | Static Web App | Angular Ionic review portal with drill-down |
 | Security | Private VNet + Managed Identity | Zero-trust network + keyless auth |
 | AI Agent | AI Foundry (`001-ai-proj`) | Orchestration and intelligent processing |
 
@@ -178,7 +178,7 @@ python scripts/parse_documents.py
 python -m api.app
 
 # Terminal 2: Start UI dev server
-cd ui && npm run dev
+cd ui && npm start
 ```
 
 Open `http://localhost:3000` to access the review portal.
@@ -198,7 +198,9 @@ python scripts/generate_architecture.py
 ```
 AI-Document-Intelligence/
 ├── .github/workflows/
-│   └── deploy.yml              # GitHub Actions CI/CD pipeline
+│   ├── deploy.yml              # Doc Intelligence solution pipeline (infra + data)
+│   ├── deploy-api.yml          # API backend deployment
+│   └── deploy-ui.yml           # UI frontend deployment
 ├── api/
 │   ├── __init__.py
 │   ├── app.py                  # FastAPI application
@@ -225,22 +227,26 @@ AI-Document-Intelligence/
 │   └── generate_architecture.py # Generate PNG architecture diagram
 ├── ui/
 │   ├── src/
-│   │   ├── components/
-│   │   │   ├── ConfidenceBadge.tsx    # Color-coded confidence indicator
-│   │   │   ├── DocumentDetail.tsx     # Document drill-down with sections
-│   │   │   ├── DocumentList.tsx       # Blob files listing (pre-parse)
-│   │   │   ├── FieldEditor.tsx        # Inline field correction editor
-│   │   │   ├── ParsedDocuments.tsx    # Parsed docs grouped by confidence
-│   │   │   └── SectionDetail.tsx      # Section fields table
-│   │   ├── api.ts              # API client functions
-│   │   ├── types.ts            # TypeScript interfaces
-│   │   ├── App.tsx             # Main app with routing
-│   │   ├── App.css             # Styles
-│   │   └── main.tsx            # Entry point
+│   │   ├── app/
+│   │   │   ├── pages/
+│   │   │   │   ├── blob-files/
+│   │   │   │   │   └── blob-files.page.ts     # Blob files listing (pre-parse)
+│   │   │   │   ├── parsed-documents/
+│   │   │   │   │   └── parsed-documents.page.ts # Parsed docs grouped by confidence
+│   │   │   │   └── document-detail/
+│   │   │   │       └── document-detail.page.ts  # Document drill-down with sections
+│   │   │   ├── api.service.ts  # API client service
+│   │   │   ├── app.component.ts # Main app with side menu & routing
+│   │   │   ├── app.routes.ts   # Route definitions
+│   │   │   └── models.ts       # TypeScript interfaces
+│   │   ├── global.scss         # Global styles & Ionic theming
+│   │   ├── index.html          # Entry HTML
+│   │   └── main.ts             # Angular bootstrap
+│   ├── angular.json
 │   ├── package.json
+│   ├── proxy.conf.json
 │   ├── tsconfig.json
-│   ├── vite.config.ts
-│   ├── index.html
+│   ├── tsconfig.app.json
 │   └── Dockerfile
 ├── .env.example                # Environment template
 ├── .gitignore
@@ -348,15 +354,22 @@ Corrections are stored in Cosmos DB alongside the original extracted values, mai
 
 ## GitHub Actions CI/CD
 
-The workflow at `.github/workflows/deploy.yml` automates:
+The workflow files at `.github/workflows/` provide three separate pipelines:
 
+### `deploy.yml` — Doc Intelligence Solution (Infra + Data Pipeline)
 1. **Provision** — Deploy Bicep infrastructure (Cosmos DB, AI Search, App Service)
 2. **Generate** — Create 100 tax exemption PDFs
 3. **Upload** — Push PDFs to Azure Blob Storage
 4. **Parse** — Run AI Document Intelligence on all documents
-5. **Deploy API** — Deploy FastAPI to Azure App Service
-6. **Deploy UI** — Build React app and deploy to Static Web Apps
-7. **Test** — Smoke tests against health, documents, and stats endpoints
+5. **Test** — Smoke tests against health, documents, and stats endpoints
+
+### `deploy-api.yml` — API Backend
+- Deploy FastAPI backend to Azure App Service
+
+### `deploy-ui.yml` — UI Frontend
+- Build Angular Ionic app and deploy to Static Web Apps
+
+> **Note**: All workflows are triggered manually via `workflow_dispatch` only. No automatic triggers on push or pull request.
 
 ### Required GitHub Secrets
 

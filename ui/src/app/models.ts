@@ -54,15 +54,15 @@ export interface BlobFile {
 }
 
 export const CATEGORY_COLORS: Record<string, string> = {
-  Blue: "#1565C0",
-  Green: "#2E7D32",
-  Yellow: "#F9A825",
-  Red: "#C62828",
+  Blue: '#1565C0',
+  Green: '#2E7D32',
+  Yellow: '#F9A825',
+  Red: '#C62828',
 };
 
 export const CATEGORY_LABELS: Record<string, string> = {
-  Blue: "Outstanding (>90%)",
-  Green: "High (>80%)",
-  Yellow: "Medium (>60%)",
-  Red: "Needs Review (<60%)",
+  Blue: 'Outstanding (>90%)',
+  Green: 'High (>80%)',
+  Yellow: 'Medium (>60%)',
+  Red: 'Needs Review (<60%)',
 };

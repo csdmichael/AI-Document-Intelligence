@@ -6,7 +6,7 @@ COPY . .
 RUN npm run build
 
 FROM nginx:alpine
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY --from=build /app/dist/tax-form-review-ui/browser /usr/share/nginx/html
 COPY <<EOF /etc/nginx/conf.d/default.conf
 server {
     listen 80;
