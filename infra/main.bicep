@@ -36,15 +36,12 @@ resource cosmosDatabase 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2024
 // Container 'documents' is created by scripts/setup_cosmos.py to avoid
 // throughput limit conflicts with the existing account configuration.
 
-@description('Location for AI Search (must match existing resource)')
-param searchLocation string = 'westus2'
-
 // ---------------------------------------------------------------------------
 // Azure AI Search Service
 // ---------------------------------------------------------------------------
 resource searchService 'Microsoft.Search/searchServices@2024-03-01-preview' = {
   name: 'search-${nameSuffix}'
-  location: searchLocation
+  location: location
   sku: {
     name: 'free'
   }

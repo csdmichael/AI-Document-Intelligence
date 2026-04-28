@@ -5,7 +5,7 @@ on:
 
 env:
   AZURE_RESOURCE_GROUP: ai-myaacoub
-  AZURE_LOCATION: eastus
+  AZURE_LOCATION: westus2
   BICEP_FILE: infra/main.bicep
   API_APP_NAME: api-taxforms
   PYTHON_VERSION: "3.12"
