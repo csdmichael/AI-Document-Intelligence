@@ -133,7 +133,7 @@ def get_confidence_stats():
     """Get document count per confidence category."""
     container = get_cosmos_container()
     query = (
-        "SELECT c.confidenceCategory, COUNT(1) as cnt "
+        "SELECT VALUE {\"confidenceCategory\": c.confidenceCategory, \"cnt\": COUNT(1)} "
         "FROM c GROUP BY c.confidenceCategory"
     )
     items = list(container.query_items(query=query, enable_cross_partition_query=True))

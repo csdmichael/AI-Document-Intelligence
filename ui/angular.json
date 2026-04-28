@@ -21,7 +21,8 @@
             "polyfills": ["zone.js"],
             "tsConfig": "tsconfig.app.json",
             "assets": [
-              { "glob": "**/*", "input": "src/assets", "output": "/assets" }
+              { "glob": "**/*", "input": "src/assets", "output": "/assets" },
+              { "glob": "staticwebapp.config.json", "input": "src", "output": "/" }
             ],
             "styles": [
               "src/global.scss"
@@ -34,7 +35,13 @@
                 { "type": "initial", "maximumWarning": "2mb", "maximumError": "5mb" },
                 { "type": "anyComponentStyle", "maximumWarning": "6kb", "maximumError": "10kb" }
               ],
-              "outputHashing": "all"
+              "outputHashing": "all",
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.prod.ts"
+                }
+              ]
             },
             "development": {
               "optimization": false,
