@@ -1,9 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
-  IonContent,
   IonSpinner,
-  IonText,
 } from '@ionic/angular/standalone';
 import { ApiService } from '../../api.service';
 import { BlobFile } from '../../models';
@@ -11,7 +9,7 @@ import { BlobFile } from '../../models';
 @Component({
   selector: 'app-blob-files',
   standalone: true,
-  imports: [CommonModule, IonContent, IonSpinner, IonText],
+  imports: [CommonModule, IonSpinner],
   template: `
     <div style="padding: 1.5rem; max-width: 1200px; margin: 0 auto;">
       <div *ngIf="loading" style="text-align: center; padding: 3rem;">

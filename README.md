@@ -8,6 +8,22 @@ Built for **Garmin International, Inc.** as the purchaser entity.
 
 ---
 
+## Live Application URLs
+
+| Resource | URL |
+|----------|-----|
+| **UI Portal** | [https://white-ground-036f98b1e.7.azurestaticapps.net](https://white-ground-036f98b1e.7.azurestaticapps.net) |
+| **API Backend** | [https://api-taxforms.azurewebsites.net](https://api-taxforms.azurewebsites.net) |
+| **Swagger API Docs** | [https://api-taxforms.azurewebsites.net/docs](https://api-taxforms.azurewebsites.net/docs) |
+| **ReDoc API Docs** | [https://api-taxforms.azurewebsites.net/redoc](https://api-taxforms.azurewebsites.net/redoc) |
+| **Health Check** | [https://api-taxforms.azurewebsites.net/health](https://api-taxforms.azurewebsites.net/health) |
+
+## Customer Demo
+
+For a guided walkthrough of the solution for customer-facing demos, see the **[Demo Walkthrough Guide](docs/DEMO.md)**. It includes talking points, step-by-step demo instructions, Q&A preparation, and a pre-demo checklist.
+
+---
+
 ## Architecture Diagram
 
 See the full architecture diagram with data flow details in [`docs/architecture.md`](docs/architecture.md).

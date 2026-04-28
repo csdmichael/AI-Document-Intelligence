@@ -124,7 +124,7 @@ export class ParsedDocumentsPage implements OnInit {
 
   getStatValue(key: string): number {
     if (!this.stats) return 0;
-    return (this.stats as Record<string, number>)[key] ?? 0;
+    return (this.stats as unknown as Record<string, number>)[key] ?? 0;
   }
 
   private loadData(): void {
