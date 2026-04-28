@@ -31,8 +31,11 @@ def ensure_container(client: BlobServiceClient):
         container_client.get_container_properties()
         print(f"Container '{CONTAINER_NAME}' already exists.")
     except Exception:
-        container_client.create_container()
-        print(f"Container '{CONTAINER_NAME}' created.")
+        try:
+            container_client.create_container()
+            print(f"Container '{CONTAINER_NAME}' created.")
+        except Exception as e:
+            print(f"Could not create container (may already exist): {e}")
 
 
 def upload_pdfs(client: BlobServiceClient):

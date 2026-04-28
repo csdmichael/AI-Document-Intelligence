@@ -1,0 +1,15 @@
+.git
+data
+ui
+docs
+scripts
+infra
+.github
+node_modules
+__pycache__
+*.pdf
+applog
+applog.zip
+deploy.zip
+.venv
+venv

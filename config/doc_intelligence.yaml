@@ -2,9 +2,9 @@
 # Model selection, confidence thresholds, and processing settings.
 
 model:
-  # Use prebuilt-document for general key-value extraction from forms.
+  # Use prebuilt-layout for general form extraction (key-value pairs, tables, text).
   # Switch to a custom model ID after training for higher accuracy.
-  model_id: "prebuilt-document"
+  model_id: "prebuilt-layout"
   # API version for the Document Intelligence SDK
   api_version: "2024-11-30"
 

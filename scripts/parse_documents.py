@@ -153,9 +153,12 @@ def organize_into_sections(result) -> list:
 
 
 def parse_single_document(di_client: DocumentIntelligenceClient,
-                          blob_url: str, filename: str) -> dict:
+                          blob_url: str, filename: str,
+                          sas_token: str = "") -> dict:
     """Parse a single PDF document and return structured results."""
     doc_url = f"{blob_url}/{CONTAINER_NAME}/{filename}"
+    if sas_token:
+        doc_url = f"{doc_url}?{sas_token}"
     state_abbr, state_name = extract_state_from_filename(filename)
 
     poller = di_client.begin_analyze_document(
@@ -211,6 +214,8 @@ def list_blobs(blob_service: BlobServiceClient) -> list:
 
 
 def main():
+    from azure.storage.blob import generate_container_sas, ContainerSasPermissions
+
     credential = DefaultAzureCredential()
 
     # Initialize clients
@@ -228,6 +233,20 @@ def main():
         credential=credential,
     )
 
+    # Generate a user delegation SAS so Document Intelligence can access the blobs
+    udk = blob_service.get_user_delegation_key(
+        key_start_time=datetime.now(timezone.utc),
+        key_expiry_time=datetime.now(timezone.utc) + __import__('datetime').timedelta(hours=2),
+    )
+    sas_token = generate_container_sas(
+        account_name=cfg.azure.storage.account_name,
+        container_name=CONTAINER_NAME,
+        user_delegation_key=udk,
+        permission=ContainerSasPermissions(read=True),
+        expiry=datetime.now(timezone.utc) + __import__('datetime').timedelta(hours=2),
+    )
+    print(f"Generated SAS token for Document Intelligence access.")
+
     # List all PDFs in blob storage
     pdf_blobs = list_blobs(blob_service)
     if not pdf_blobs:
@@ -243,7 +262,7 @@ def main():
     for i, filename in enumerate(pdf_blobs, 1):
         try:
             print(f"[{i}/{len(pdf_blobs)}] Parsing {filename}...", end=" ")
-            document = parse_single_document(di_client, BLOB_URL, filename)
+            document = parse_single_document(di_client, BLOB_URL, filename, sas_token)
             store_in_cosmos(cosmos_client, document)
 
             cat = document["confidenceCategory"]

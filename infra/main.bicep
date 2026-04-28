@@ -28,41 +28,13 @@ resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' existi
   name: cosmosAccountName
 }
 
-resource cosmosDatabase 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2024-05-15' = {
+resource cosmosDatabase 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2024-05-15' existing = {
   parent: cosmosAccount
   name: 'taxforms'
-  properties: {
-    resource: {
-      id: 'taxforms'
-    }
-  }
 }
 
-resource cosmosContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = {
-  parent: cosmosDatabase
-  name: 'documents'
-  properties: {
-    resource: {
-      id: 'documents'
-      partitionKey: {
-        paths: ['/state']
-        kind: 'Hash'
-      }
-      indexingPolicy: {
-        indexingMode: 'consistent'
-        includedPaths: [
-          { path: '/*' }
-        ]
-        excludedPaths: [
-          { path: '/"_etag"/?' }
-        ]
-      }
-    }
-    options: {
-      throughput: 400
-    }
-  }
-}
+// Container 'documents' is created by scripts/setup_cosmos.py to avoid
+// throughput limit conflicts with the existing account configuration.
 
 // ---------------------------------------------------------------------------
 // Azure AI Search Service
@@ -71,7 +43,7 @@ resource searchService 'Microsoft.Search/searchServices@2024-03-01-preview' = {
   name: 'search-${nameSuffix}'
   location: location
   sku: {
-    name: 'basic'
+    name: 'free'
   }
   properties: {
     replicaCount: 1
