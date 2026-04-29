@@ -3,11 +3,6 @@ name: Deploy API Backend
 on:
   workflow_dispatch:
 
-env:
-  AZURE_RESOURCE_GROUP: ai-myaacoub
-  API_APP_NAME: api-taxforms
-  PYTHON_VERSION: "3.12"
-
 permissions:
   id-token: write
   contents: read
@@ -18,6 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Load shared config
+        run: |
+          cat .github/config.env >> "$GITHUB_ENV"
 
       - name: Set up Python
         uses: actions/setup-python@v5

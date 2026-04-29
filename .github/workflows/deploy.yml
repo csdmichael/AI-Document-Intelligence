@@ -3,13 +3,6 @@ name: Deploy Doc Intelligence Solution (Infra + Data Pipeline)
 on:
   workflow_dispatch:
 
-env:
-  AZURE_RESOURCE_GROUP: ai-myaacoub
-  AZURE_LOCATION: westus2
-  BICEP_FILE: infra/main.bicep
-  API_APP_NAME: api-taxforms
-  PYTHON_VERSION: "3.12"
-
 permissions:
   id-token: write
   contents: read
@@ -26,6 +19,10 @@ jobs:
       apiUrl: ${{ steps.deploy.outputs.apiUrl }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Load shared config
+        run: |
+          cat .github/config.env >> "$GITHUB_ENV"
 
       - name: Azure Login (OIDC)
         uses: azure/login@v2
@@ -52,6 +49,10 @@ jobs:
     needs: infra
     steps:
       - uses: actions/checkout@v4
+
+      - name: Load shared config
+        run: |
+          cat .github/config.env >> "$GITHUB_ENV"
 
       - name: Set up Python
         uses: actions/setup-python@v5
