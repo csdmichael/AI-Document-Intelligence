@@ -21,6 +21,12 @@ param aiServicesEndpoint string = 'https://001-ai-poc.cognitiveservices.azure.co
 @description('Existing Cosmos DB account name')
 param cosmosAccountName string = 'cosmos-ai-poc'
 
+@description('Existing VNet name (contains private endpoints + app service subnet)')
+param vnetName string = 'vnet-salespoc-westus2'
+
+@description('Subnet for App Service VNet integration')
+param appSubnetName string = 'snet-appservice'
+
 // ---------------------------------------------------------------------------
 // Reference existing Cosmos DB account (not provisioned by this template)
 // ---------------------------------------------------------------------------
@@ -31,6 +37,18 @@ resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' existi
 resource cosmosDatabase 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2024-05-15' existing = {
   parent: cosmosAccount
   name: 'taxforms'
+}
+
+// ---------------------------------------------------------------------------
+// Reference existing VNet and subnet for private endpoint connectivity
+// ---------------------------------------------------------------------------
+resource existingVnet 'Microsoft.Network/virtualNetworks@2023-11-01' existing = {
+  name: vnetName
+}
+
+resource appSubnet 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' existing = {
+  parent: existingVnet
+  name: appSubnetName
 }
 
 // Container 'documents' is created by scripts/setup_cosmos.py to avoid
@@ -82,6 +100,7 @@ resource apiApp 'Microsoft.Web/sites@2023-12-01' = {
   }
   properties: {
     serverFarmId: appPlan.id
+    virtualNetworkSubnetId: appSubnet.id
     siteConfig: {
       linuxFxVersion: 'PYTHON|3.12'
       appCommandLine: 'uvicorn api.app:app --host 0.0.0.0 --port 8000'
@@ -99,6 +118,7 @@ resource apiApp 'Microsoft.Web/sites@2023-12-01' = {
         { name: 'AZURE_COSMOS_DATABASE', value: 'taxforms' }
         { name: 'AZURE_COSMOS_CONTAINER', value: 'documents' }
         { name: 'SCM_DO_BUILD_DURING_DEPLOYMENT', value: 'true' }
+        { name: 'WEBSITE_DNS_SERVER', value: '168.63.129.16' }
       ]
     }
     httpsOnly: true

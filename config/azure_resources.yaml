@@ -36,3 +36,10 @@ app_service:
   api_url: "https://api-taxforms.azurewebsites.net"
   ui_name: "ui-taxforms"
   ui_url: "https://ui-taxforms.azurewebsites.net"
+
+network:
+  vnet_name: "vnet-salespoc-westus2"
+  app_subnet: "snet-appservice"
+  private_endpoint_subnet: "snet-private-endpoints"
+  cosmos_private_endpoint: "pe-cosmos-westus2"
+  blob_private_endpoint: "pe-blob-westus2"
