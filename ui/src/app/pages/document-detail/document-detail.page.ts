@@ -139,13 +139,13 @@ import { environment } from '../../../environments/environment';
                     {{ section.confidenceCategory }}
                   </span>
                   <span style="font-size: 0.75rem; color: #888;">
-                    {{ expandedSection === section.sectionIndex ? '▲' : '▼' }}
+                    {{ expandedSections.has(section.sectionIndex) ? '▲' : '▼' }}
                   </span>
                 </div>
               </div>
 
               <!-- Fields Table -->
-              <div *ngIf="expandedSection === section.sectionIndex" class="fields-panel" (click)="$event.stopPropagation()">
+              <div *ngIf="expandedSections.has(section.sectionIndex)" class="fields-panel" (click)="$event.stopPropagation()">
                 <div *ngFor="let field of section.fields" class="field-row" [class.corrected]="!!field.correctedValue">
                   <div class="field-name">{{ field.fieldName }}</div>
                   <div class="field-value-area">
@@ -455,7 +455,7 @@ import { environment } from '../../../environments/environment';
 export class DocumentDetailPage implements OnInit {
   doc: DocumentDetail | null = null;
   pdfUrl: SafeResourceUrl | null = null;
-  expandedSection: number | null = 0;
+  expandedSections = new Set<number>();
   loading = true;
   error = '';
   editingField: { sectionIndex: number; fieldName: string } | null = null;
@@ -482,7 +482,11 @@ export class DocumentDetailPage implements OnInit {
   }
 
   toggleSection(index: number): void {
-    this.expandedSection = this.expandedSection === index ? null : index;
+    if (this.expandedSections.has(index)) {
+      this.expandedSections.delete(index);
+    } else {
+      this.expandedSections.add(index);
+    }
   }
 
   getSectionColor(section: Section): string {
@@ -565,9 +569,17 @@ export class DocumentDetailPage implements OnInit {
           const pdfPath = `${baseUrl}/api/blobs/${encodeURIComponent(data.fileName)}`;
           this.pdfUrl = this.sanitizer.bypassSecurityTrustResourceUrl(pdfPath);
         }
-        // Auto-expand first section
-        if (data.sections?.length > 0 && this.expandedSection === null) {
-          this.expandedSection = data.sections[0].sectionIndex;
+        // Auto-expand table data sections by default
+        if (data.sections?.length > 0 && this.expandedSections.size === 0) {
+          for (const s of data.sections) {
+            if (s.sectionName.toLowerCase().includes('table')) {
+              this.expandedSections.add(s.sectionIndex);
+            }
+          }
+          // Fallback: expand first section if no table section found
+          if (this.expandedSections.size === 0) {
+            this.expandedSections.add(data.sections[0].sectionIndex);
+          }
         }
         this.loading = false;
       },
