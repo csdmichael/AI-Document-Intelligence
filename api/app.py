@@ -15,10 +15,12 @@ from typing import Optional
 from api.config import (
     BLOB_URL, STORAGE_CONTAINER_NAME, COSMOS_ENDPOINT,
     COSMOS_DATABASE, COSMOS_CONTAINER, API_HOST, API_PORT,
+    DOCUMENT_INTELLIGENCE_ENDPOINT,
 )
 from api.models import (
     FieldUpdate, DocumentSummary, DocumentDetail,
     ConfidenceStats, BlobFile, RetrainingStatus,
+    CustomModelStatus, TrainRequest,
 )
 
 app = FastAPI(
@@ -339,6 +341,77 @@ def export_training_data():
         "documentCount": len(training_data),
         "documents": training_data,
     }
+
+
+# ---------------------------------------------------------------------------
+# Custom Model Management
+# ---------------------------------------------------------------------------
+
+def _get_di_client():
+    """Return a lazy DocumentIntelligenceClient."""
+    from azure.ai.documentintelligence import DocumentIntelligenceClient as _DI
+    return _DI(endpoint=DOCUMENT_INTELLIGENCE_ENDPOINT, credential=get_credential())
+
+
+@app.get("/api/custom-model/status", response_model=CustomModelStatus)
+def get_custom_model_status():
+    """Return the current custom model availability and training readiness."""
+    from config import cfg as _cfg
+
+    custom_model_id = _cfg.custom_model_id or ""
+    primary_model_id = _cfg.doc_intelligence.model.model_id
+    comparison_model_id = _cfg.comparison_model_id
+    min_docs = _cfg.doc_intelligence.retraining.min_samples_per_type
+
+    # Count reviewed documents
+    container = get_cosmos_container()
+    query = (
+        "SELECT VALUE COUNT(1) FROM c "
+        "WHERE c.status IN ('reviewed', 'approved')"
+    )
+    result = list(container.query_items(query=query, enable_cross_partition_query=True))
+    reviewed_count = result[0] if result else 0
+
+    # Verify that the custom model actually exists in Document Intelligence
+    is_available = False
+    if custom_model_id:
+        try:
+            di = _get_di_client()
+            di.get_document_model(custom_model_id)
+            is_available = True
+        except Exception:
+            is_available = False
+
+    return CustomModelStatus(
+        customModelId=custom_model_id,
+        isAvailable=is_available,
+        primaryModelId=primary_model_id,
+        comparisonModelId=comparison_model_id,
+        minimumReviewedDocs=min_docs,
+        currentReviewedDocs=reviewed_count,
+        readyToTrain=reviewed_count >= min_docs,
+    )
+
+
+@app.get("/api/custom-model/list")
+def list_custom_models():
+    """List all custom models available in the Document Intelligence resource."""
+    try:
+        di = _get_di_client()
+        models = []
+        for m in di.list_document_models():
+            models.append({
+                "modelId": m.model_id,
+                "description": getattr(m, "description", ""),
+                "createdDateTime": (
+                    m.created_date_time.isoformat()
+                    if hasattr(m, "created_date_time") and m.created_date_time
+                    else None
+                ),
+            })
+        return {"models": models, "count": len(models)}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 # ---------------------------------------------------------------------------

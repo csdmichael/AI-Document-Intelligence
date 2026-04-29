@@ -90,10 +90,18 @@ class Config:
 
         # Load Document Intelligence config
         di_data = _load_yaml("doc_intelligence.yaml")
-        # Env override for model ID
+        # Env override for primary model ID
         model_id = os.getenv("DOC_INTELLIGENCE_MODEL_ID")
         if model_id:
             di_data.setdefault("model", {})["model_id"] = model_id
+        # Env override for custom model ID
+        custom_model_id = os.getenv("DOC_INTELLIGENCE_CUSTOM_MODEL_ID")
+        if custom_model_id:
+            di_data.setdefault("model", {})["custom_model_id"] = custom_model_id
+        # Env override for comparison model ID
+        comparison_model_id = os.getenv("DOC_INTELLIGENCE_COMPARISON_MODEL_ID")
+        if comparison_model_id:
+            di_data.setdefault("model", {})["comparison_model_id"] = comparison_model_id
         self.doc_intelligence = _dict_to_namespace(di_data)
 
         # Load app settings
@@ -120,6 +128,19 @@ class Config:
     @property
     def di_endpoint(self) -> str:
         return self.azure.ai_services.endpoint
+
+    @property
+    def custom_model_id(self) -> str:
+        """Return the trained custom model ID, or empty string if not set."""
+        return getattr(self.doc_intelligence.model, "custom_model_id", "") or ""
+
+    @property
+    def comparison_model_id(self) -> str:
+        """Return the OCR/read comparison model ID."""
+        return (
+            getattr(self.doc_intelligence.model, "comparison_model_id", "")
+            or "prebuilt-read"
+        )
 
     def get_confidence_category(self, score: float) -> str:
         """Map a confidence score to its color category name."""

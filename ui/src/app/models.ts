@@ -16,6 +16,14 @@ export interface Section {
   fields: Field[];
 }
 
+export interface ModelComparison {
+  modelId: string;
+  overallConfidence: number | null;
+  confidenceCategory: string | null;
+  totalWords: number | null;
+  error: string | null;
+}
+
 export interface DocumentSummary {
   id: string;
   fileName: string;
@@ -27,11 +35,13 @@ export interface DocumentSummary {
   totalSections: number;
   totalFields: number;
   parsedAt: string | null;
+  modelSource: string | null;
 }
 
 export interface DocumentDetail extends DocumentSummary {
   blobUrl: string;
   confidenceLabel: string | null;
+  modelComparison: ModelComparison | null;
   sections: Section[];
   uploadedAt: string | null;
   reviewedBy: string | null;
@@ -73,4 +83,20 @@ export interface RetrainingStatus {
   totalCorrections: number;
   readyForTraining: boolean;
   minimumRequired: number;
+}
+
+export interface CustomModelStatus {
+  customModelId: string;
+  isAvailable: boolean;
+  primaryModelId: string;
+  comparisonModelId: string;
+  minimumReviewedDocs: number;
+  currentReviewedDocs: number;
+  readyToTrain: boolean;
+}
+
+export interface CustomModelInfo {
+  modelId: string;
+  description: string;
+  createdDateTime: string | null;
 }

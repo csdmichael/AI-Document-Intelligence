@@ -3,8 +3,16 @@ Parse all tax exemption PDFs using Azure AI Document Intelligence.
 Extracts fields by section, computes confidence scores, and stores results in Cosmos DB.
 
 Uses managed identity (DefaultAzureCredential) throughout.
+
+Optional flags
+--------------
+--model MODEL_ID    Override the model ID from config (e.g. a custom model ID).
+--compare           Also parse with the comparison model (prebuilt-read / OCR)
+                    and store the comparison result alongside the primary result.
+--prefix PREFIX     Only process blobs whose names start with PREFIX.
 """
 
+import argparse
 import os
 import sys
 import uuid
@@ -236,15 +244,17 @@ def _get_word_confidences_for_content(result, content: str) -> list:
 
 def parse_single_document(di_client: DocumentIntelligenceClient,
                           blob_url: str, filename: str,
-                          sas_token: str = "") -> dict:
+                          sas_token: str = "",
+                          model_id: str = "") -> dict:
     """Parse a single PDF document and return structured results."""
+    effective_model = model_id or MODEL_ID
     doc_url = f"{blob_url}/{CONTAINER_NAME}/{filename}"
     if sas_token:
         doc_url = f"{doc_url}?{sas_token}"
     state_abbr, state_name = extract_state_from_filename(filename)
 
     poller = di_client.begin_analyze_document(
-        MODEL_ID,
+        effective_model,
         AnalyzeDocumentRequest(url_source=doc_url),
         features=[DocumentAnalysisFeature.KEY_VALUE_PAIRS],
     )
@@ -273,6 +283,7 @@ def parse_single_document(di_client: DocumentIntelligenceClient,
         "overallConfidence": overall_confidence,
         "confidenceCategory": get_confidence_category(overall_confidence),
         "confidenceLabel": get_confidence_label(get_confidence_category(overall_confidence)),
+        "modelSource": effective_model,
         "sections": sections,
         "totalFields": sum(len(s["fields"]) for s in sections),
         "totalSections": len(sections),
@@ -280,6 +291,46 @@ def parse_single_document(di_client: DocumentIntelligenceClient,
         "reviewedAt": None,
         "approvedBy": None,
         "approvedAt": None,
+    }
+
+
+def _build_comparison(di_client: DocumentIntelligenceClient,
+                      blob_url: str, filename: str,
+                      sas_token: str,
+                      comparison_model_id: str) -> dict:
+    """
+    Parse the document with the comparison model (e.g. prebuilt-read) and
+    return a compact comparison summary.
+    """
+    doc_url = f"{blob_url}/{CONTAINER_NAME}/{filename}"
+    if sas_token:
+        doc_url = f"{doc_url}?{sas_token}"
+
+    try:
+        poller = di_client.begin_analyze_document(
+            comparison_model_id,
+            AnalyzeDocumentRequest(url_source=doc_url),
+        )
+        result = poller.result()
+    except Exception as exc:
+        return {"modelId": comparison_model_id, "error": str(exc)}
+
+    # For prebuilt-read the primary signal is word-level confidence
+    word_confs = []
+    if hasattr(result, "pages") and result.pages:
+        for page in result.pages:
+            if hasattr(page, "words") and page.words:
+                for w in page.words:
+                    if hasattr(w, "confidence") and w.confidence is not None:
+                        word_confs.append(float(w.confidence))
+
+    avg_conf = round(sum(word_confs) / len(word_confs), 4) if word_confs else 0.0
+
+    return {
+        "modelId": comparison_model_id,
+        "overallConfidence": avg_conf,
+        "confidenceCategory": get_confidence_category(avg_conf),
+        "totalWords": len(word_confs),
     }
 
 
@@ -298,6 +349,26 @@ def list_blobs(blob_service: BlobServiceClient) -> list:
 
 def main():
     from azure.storage.blob import generate_container_sas, ContainerSasPermissions
+
+    parser = argparse.ArgumentParser(
+        description="Parse tax exemption PDFs with Azure AI Document Intelligence.")
+    parser.add_argument(
+        "--model", type=str, default="",
+        help="Override the model ID (e.g. a custom trained model ID).")
+    parser.add_argument(
+        "--compare", action="store_true",
+        help="Also parse with the comparison (OCR/read) model and store the "
+             "comparison result in the document record.")
+    parser.add_argument(
+        "--prefix", type=str, default="",
+        help="Only process blobs whose names start with this prefix.")
+    args = parser.parse_args()
+
+    effective_model = args.model or MODEL_ID
+    comparison_model = cfg.comparison_model_id
+    print(f"Primary model   : {effective_model}")
+    if args.compare:
+        print(f"Comparison model: {comparison_model}")
 
     credential = DefaultAzureCredential()
 
@@ -332,6 +403,8 @@ def main():
 
     # List all PDFs in blob storage
     pdf_blobs = list_blobs(blob_service)
+    if args.prefix:
+        pdf_blobs = [b for b in pdf_blobs if b.startswith(args.prefix)]
     if not pdf_blobs:
         print("No PDF files found in blob storage. Run upload_to_blob.py first.")
         sys.exit(1)
@@ -345,14 +418,32 @@ def main():
     for i, filename in enumerate(pdf_blobs, 1):
         try:
             print(f"[{i}/{len(pdf_blobs)}] Parsing {filename}...", end=" ")
-            document = parse_single_document(di_client, BLOB_URL, filename, sas_token)
+            document = parse_single_document(
+                di_client, BLOB_URL, filename, sas_token,
+                model_id=effective_model)
+
+            # Optional: run comparison model
+            if args.compare:
+                comparison = _build_comparison(
+                    di_client, BLOB_URL, filename, sas_token,
+                    comparison_model_id=comparison_model)
+                document["modelComparison"] = comparison
+
             store_in_cosmos(cosmos_client, document)
 
             cat = document["confidenceCategory"]
             results_summary[cat] += 1
+            cmp_info = ""
+            if args.compare and "modelComparison" in document:
+                cmp = document["modelComparison"]
+                if "overallConfidence" in cmp:
+                    cmp_info = (
+                        f" | OCR: {cmp['overallConfidence']:.2%} "
+                        f"({cmp['confidenceCategory']})"
+                    )
             print(f"{cat} ({document['overallConfidence']:.2%}) - "
                   f"{document['totalSections']} sections, "
-                  f"{document['totalFields']} fields")
+                  f"{document['totalFields']} fields{cmp_info}")
 
         except Exception as e:
             errors.append((filename, str(e)))
@@ -362,6 +453,7 @@ def main():
     print("\n" + "=" * 60)
     print("PARSING SUMMARY")
     print("=" * 60)
+    print(f"  Primary model: {effective_model}")
     print(f"  Blue  (Outstanding, >90%):  {results_summary['Blue']}")
     print(f"  Green (High, >80%):         {results_summary['Green']}")
     print(f"  Yellow (Medium, >60%):      {results_summary['Yellow']}")

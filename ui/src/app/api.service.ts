@@ -1,7 +1,10 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { BlobFile, DocumentSummary, DocumentDetail, ConfidenceStats, RetrainingStatus } from './models';
+import {
+  BlobFile, DocumentSummary, DocumentDetail, ConfidenceStats,
+  RetrainingStatus, CustomModelStatus, CustomModelInfo,
+} from './models';
 import { environment } from '../environments/environment';
 
 @Injectable({ providedIn: 'root' })
@@ -51,5 +54,14 @@ export class ApiService {
 
   exportTrainingData(): Observable<unknown> {
     return this.http.post(`${this.base}/retraining/export`, {});
+  }
+
+  // Custom model endpoints
+  getCustomModelStatus(): Observable<CustomModelStatus> {
+    return this.http.get<CustomModelStatus>(`${this.base}/custom-model/status`);
+  }
+
+  listCustomModels(): Observable<{ models: CustomModelInfo[]; count: number }> {
+    return this.http.get<{ models: CustomModelInfo[]; count: number }>(`${this.base}/custom-model/list`);
   }
 }
