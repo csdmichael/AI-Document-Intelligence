@@ -50,6 +50,7 @@ import { environment } from '../../../environments/environment';
             </div>
             <ion-button *ngIf="doc.status !== 'approved'"
                         color="success" size="small"
+                        style="--background: #2e7d32; --color: #fff;"
                         (click)="handleApprove()">
               ✓ Approve
             </ion-button>
