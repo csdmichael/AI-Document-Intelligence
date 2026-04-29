@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from azure.identity import DefaultAzureCredential
 from azure.ai.documentintelligence import DocumentIntelligenceClient
-from azure.ai.documentintelligence.models import AnalyzeDocumentRequest
+from azure.ai.documentintelligence.models import AnalyzeDocumentRequest, DocumentAnalysisFeature
 from azure.cosmos import CosmosClient, PartitionKey
 from azure.storage.blob import BlobServiceClient
 from config import cfg
@@ -61,76 +61,141 @@ def extract_state_from_filename(filename: str) -> tuple:
 def organize_into_sections(result) -> list:
     """
     Organize Document Intelligence results into logical sections.
-    Returns a list of section dicts with field-level confidence scores.
+    Extracts fields with real confidence scores from key-value pairs,
+    document fields, tables, and page words.
     """
     sections = {}
 
     def _resolve_section(field_name: str) -> str:
-        """Use config-driven section mapping to classify a field."""
         return cfg.get_section_name(field_name)
 
-    # Process document fields from the analyzed result
-    if hasattr(result, "documents") and result.documents:
-        for doc in result.documents:
-            if hasattr(doc, "fields") and doc.fields:
-                for field_name, field_value in doc.fields.items():
-                    # Determine section from config-driven mapping
-                    section_name = _resolve_section(field_name)
+    def _add_field(section_name: str, field_name: str, value: str, confidence: float):
+        if section_name not in sections:
+            sections[section_name] = {"fields": []}
+        sections[section_name]["fields"].append({
+            "fieldName": field_name,
+            "extractedValue": value or "",
+            "confidence": round(max(0.0, min(1.0, confidence)), 4),
+            "confidenceCategory": get_confidence_category(confidence),
+            "correctedValue": None,
+            "correctedBy": None,
+            "correctedAt": None,
+        })
 
-                    if section_name not in sections:
-                        sections[section_name] = {"fields": []}
-
-                    confidence = field_value.confidence if hasattr(field_value, "confidence") and field_value.confidence else 0.0
-                    value = field_value.content if hasattr(field_value, "content") else str(field_value.value) if hasattr(field_value, "value") else ""
-
-                    sections[section_name]["fields"].append({
-                        "fieldName": field_name,
-                        "extractedValue": value or "",
-                        "confidence": round(confidence, 4),
-                        "confidenceCategory": get_confidence_category(confidence),
-                        "correctedValue": None,
-                        "correctedBy": None,
-                        "correctedAt": None,
-                    })
-
-    # Fall back to key-value pairs if no document-level fields
-    if not sections and hasattr(result, "key_value_pairs") and result.key_value_pairs:
+    # --- Source 1: Key-value pairs (best source for form-like documents) ---
+    if hasattr(result, "key_value_pairs") and result.key_value_pairs:
         for kv in result.key_value_pairs:
-            key_content = kv.key.content if kv.key and hasattr(kv.key, "content") else "Unknown"
-            value_content = kv.value.content if kv.value and hasattr(kv.value, "content") else ""
-            confidence = kv.confidence if hasattr(kv, "confidence") and kv.confidence else 0.0
+            key_content = ""
+            if kv.key and hasattr(kv.key, "content"):
+                key_content = kv.key.content.strip()
+            if not key_content:
+                continue
+
+            value_content = ""
+            if kv.value and hasattr(kv.value, "content"):
+                value_content = kv.value.content.strip()
+
+            # Confidence comes from the KV pair itself
+            confidence = 0.0
+            if hasattr(kv, "confidence") and kv.confidence is not None:
+                confidence = float(kv.confidence)
+            else:
+                # Fallback: average word-level confidence from the value spans
+                word_confs = []
+                if kv.value and hasattr(kv.value, "spans") and kv.value.spans and hasattr(result, "pages"):
+                    for page in result.pages:
+                        if hasattr(page, "words") and page.words:
+                            for word in page.words:
+                                if hasattr(word, "confidence") and word.confidence is not None:
+                                    word_confs.append(float(word.confidence))
+                if word_confs:
+                    confidence = sum(word_confs) / len(word_confs)
 
             section_name = _resolve_section(key_content)
+            _add_field(section_name, key_content, value_content, confidence)
 
-            if section_name not in sections:
-                sections[section_name] = {"fields": []}
+    # --- Source 2: Document-level fields (prebuilt models like prebuilt-document) ---
+    if hasattr(result, "documents") and result.documents:
+        for doc in result.documents:
+            if not hasattr(doc, "fields") or not doc.fields:
+                continue
+            for field_name, field_value in doc.fields.items():
+                # Skip if we already extracted this field from key-value pairs
+                already_exists = any(
+                    field_name.lower() == f["fieldName"].lower()
+                    for sec in sections.values()
+                    for f in sec["fields"]
+                )
+                if already_exists:
+                    continue
 
-            sections[section_name]["fields"].append({
-                "fieldName": key_content,
-                "extractedValue": value_content,
-                "confidence": round(confidence, 4),
-                "confidenceCategory": get_confidence_category(confidence),
-                "correctedValue": None,
-                "correctedBy": None,
-                "correctedAt": None,
-            })
+                confidence = 0.0
+                if hasattr(field_value, "confidence") and field_value.confidence is not None:
+                    confidence = float(field_value.confidence)
 
-    # Fall back to tables
+                value = ""
+                if hasattr(field_value, "content") and field_value.content:
+                    value = field_value.content
+                elif hasattr(field_value, "value_string") and field_value.value_string:
+                    value = field_value.value_string
+                elif hasattr(field_value, "value") and field_value.value is not None:
+                    value = str(field_value.value)
+
+                section_name = _resolve_section(field_name)
+                _add_field(section_name, field_name, value, confidence)
+
+    # --- Source 3: Tables (fallback, use cell-level confidence) ---
     if not sections and hasattr(result, "tables") and result.tables:
-        section_name = "Table Data"
-        sections[section_name] = {"fields": []}
-        for table in result.tables:
+        for table_idx, table in enumerate(result.tables):
+            section_name = f"Table {table_idx + 1}"
+            # Build header row for column names
+            headers = {}
             for cell in table.cells:
-                confidence = cell.confidence if hasattr(cell, "confidence") and cell.confidence else 0.5
-                sections[section_name]["fields"].append({
-                    "fieldName": f"Row {cell.row_index} Col {cell.column_index}",
-                    "extractedValue": cell.content if hasattr(cell, "content") else "",
-                    "confidence": round(confidence, 4),
-                    "confidenceCategory": get_confidence_category(confidence),
-                    "correctedValue": None,
-                    "correctedBy": None,
-                    "correctedAt": None,
-                })
+                if cell.row_index == 0:
+                    headers[cell.column_index] = cell.content.strip() if hasattr(cell, "content") else f"Col {cell.column_index}"
+
+            for cell in table.cells:
+                if cell.row_index == 0:
+                    continue  # skip header row
+                col_name = headers.get(cell.column_index, f"Col {cell.column_index}")
+                field_name = f"{col_name} (Row {cell.row_index})"
+                value = cell.content.strip() if hasattr(cell, "content") else ""
+
+                confidence = 0.0
+                if hasattr(cell, "confidence") and cell.confidence is not None:
+                    confidence = float(cell.confidence)
+                # If cell confidence is missing, derive from page words
+                if confidence == 0.0 and hasattr(result, "pages"):
+                    word_confs = _get_word_confidences_for_content(result, value)
+                    if word_confs:
+                        confidence = sum(word_confs) / len(word_confs)
+
+                _add_field(section_name, field_name, value, confidence)
+
+    # --- Source 4: Paragraphs as last resort ---
+    if not sections and hasattr(result, "paragraphs") and result.paragraphs:
+        section_name = "Extracted Text"
+        for i, para in enumerate(result.paragraphs):
+            content = para.content.strip() if hasattr(para, "content") else ""
+            if not content or len(content) < 3:
+                continue
+            # Split paragraph into "key: value" if possible
+            if ":" in content:
+                parts = content.split(":", 1)
+                key = parts[0].strip()
+                val = parts[1].strip()
+            else:
+                key = f"Paragraph {i + 1}"
+                val = content
+
+            # Derive confidence from word-level scores
+            confidence = 0.0
+            word_confs = _get_word_confidences_for_content(result, content)
+            if word_confs:
+                confidence = sum(word_confs) / len(word_confs)
+
+            real_section = _resolve_section(key)
+            _add_field(real_section, key, val, confidence)
 
     # Compute section-level confidence
     section_list = []
@@ -152,6 +217,23 @@ def organize_into_sections(result) -> list:
     return section_list
 
 
+def _get_word_confidences_for_content(result, content: str) -> list:
+    """Extract word-level confidence scores that match the given content."""
+    if not content or not hasattr(result, "pages"):
+        return []
+    content_lower = content.lower()
+    confs = []
+    for page in result.pages:
+        if not hasattr(page, "words") or not page.words:
+            continue
+        for word in page.words:
+            word_text = word.content.lower() if hasattr(word, "content") else ""
+            if word_text and word_text in content_lower:
+                if hasattr(word, "confidence") and word.confidence is not None:
+                    confs.append(float(word.confidence))
+    return confs
+
+
 def parse_single_document(di_client: DocumentIntelligenceClient,
                           blob_url: str, filename: str,
                           sas_token: str = "") -> dict:
@@ -164,6 +246,7 @@ def parse_single_document(di_client: DocumentIntelligenceClient,
     poller = di_client.begin_analyze_document(
         MODEL_ID,
         AnalyzeDocumentRequest(url_source=doc_url),
+        features=[DocumentAnalysisFeature.KEY_VALUE_PAIRS],
     )
     result = poller.result()
 

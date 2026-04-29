@@ -62,6 +62,15 @@ interface DocGroup {
             <button class="filter-tab not-reviewed" [class.active]="reviewFilter === 'not-reviewed'" (click)="setReviewFilter('not-reviewed')">⬤ Not Reviewed</button>
           </div>
 
+          <!-- State Filter -->
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <label style="font-size: 0.8rem; color: #666;">State:</label>
+            <select class="state-select" [value]="stateFilter" (change)="setStateFilter($any($event.target).value)">
+              <option value="All">All States</option>
+              <option *ngFor="let s of states" [value]="s">{{ s }}</option>
+            </select>
+          </div>
+
           <!-- Retraining Panel -->
           <div *ngIf="retraining" class="retrain-badge" [class.ready]="retraining.readyForTraining">
             <span>🧠 {{ retraining.reviewedDocuments }}/{{ retraining.minimumRequired }} reviewed</span>
@@ -158,6 +167,8 @@ export class DashboardPage implements OnInit {
   error = '';
   categoryFilter = 'All';
   reviewFilter: 'all' | 'reviewed' | 'not-reviewed' = 'all';
+  stateFilter = 'All';
+  states: string[] = [];
   categoryLabels = CATEGORY_LABELS;
   statKeys: ('blue' | 'green' | 'yellow' | 'red')[] = ['blue', 'green', 'yellow', 'red'];
   pageSize = PAGE_SIZE;
@@ -179,6 +190,11 @@ export class DashboardPage implements OnInit {
 
   setReviewFilter(f: 'all' | 'reviewed' | 'not-reviewed'): void {
     this.reviewFilter = f;
+    this.applyFilters();
+  }
+
+  setStateFilter(state: string): void {
+    this.stateFilter = state;
     this.applyFilters();
   }
 
@@ -257,6 +273,7 @@ export class DashboardPage implements OnInit {
         this.allDocs = docs;
         this.stats = stats;
         this.retraining = retraining;
+        this.states = [...new Set(docs.map(d => d.state))].sort();
         this.applyFilters();
         this.loading = false;
       },
@@ -272,6 +289,9 @@ export class DashboardPage implements OnInit {
 
     if (this.categoryFilter !== 'All') {
       filtered = filtered.filter(d => d.confidenceCategory === this.categoryFilter);
+    }
+    if (this.stateFilter !== 'All') {
+      filtered = filtered.filter(d => d.state === this.stateFilter);
     }
     if (this.reviewFilter === 'reviewed') {
       filtered = filtered.filter(d => d.status === 'reviewed' || d.status === 'approved');

@@ -399,3 +399,20 @@ ion-menu ion-item.active {
 
 /* Clickable table rows */
 tr[style*="cursor: pointer"]:hover { background: #e8f0fe !important; }
+
+/* State select dropdown */
+.state-select {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.82rem;
+  background: white;
+  color: #333;
+  cursor: pointer;
+  min-width: 120px;
+}
+.state-select:focus {
+  outline: none;
+  border-color: #0078d4;
+  box-shadow: 0 0 0 2px rgba(0,120,212,0.15);
+}
