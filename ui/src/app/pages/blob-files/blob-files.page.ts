@@ -26,7 +26,7 @@ interface BlobRow {
   standalone: true,
   imports: [CommonModule, FormsModule, IonSpinner],
   template: `
-    <div class="page-container" style="padding: 1.5rem; max-width: 1400px; margin: 0 auto;">
+    <div class="page-container" style="padding: 1.5rem; max-width: 1400px; margin: 0 auto; height: 100vh; overflow-y: auto; box-sizing: border-box;">
       <div *ngIf="loading" style="text-align: center; padding: 3rem;">
         <ion-spinner name="crescent"></ion-spinner>
         <p>Loading blob files...</p>
@@ -112,7 +112,6 @@ interface BlobRow {
                 <th>#</th>
                 <th>File Name</th>
                 <th>State</th>
-                <th>Tier</th>
                 <th>Size</th>
                 <th>Last Modified</th>
                 <th>Parsed</th>
@@ -127,12 +126,6 @@ interface BlobRow {
                 <td>{{ (page - 1) * pageSize + i + 1 }}</td>
                 <td><span class="doc-link">{{ row.name }}</span></td>
                 <td>{{ row.stateName }} ({{ row.stateAbbr }})</td>
-                <td>
-                  <span *ngIf="row.tier" [class]="'badge ' + capitalize(row.tier)" style="font-size: 0.72rem;">
-                    {{ row.tier }}
-                  </span>
-                  <span *ngIf="!row.tier" style="font-size: 0.72rem; color: #888;">standard</span>
-                </td>
                 <td>{{ formatSize(row.size) }}</td>
                 <td>{{ row.lastModified | date:'short' }}</td>
                 <td>
