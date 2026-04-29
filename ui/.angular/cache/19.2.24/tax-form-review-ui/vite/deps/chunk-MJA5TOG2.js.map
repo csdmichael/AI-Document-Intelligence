@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../node_modules/@ionic/core/components/p-C53feagD.js"],
+  "sourcesContent": ["/*!\n * (C) Ionic http://ionicframework.com - MIT License\n */\nconst o = o => o && \"\" !== o.dir ? \"rtl\" === o.dir.toLowerCase() : \"rtl\" === (null === document || void 0 === document ? void 0 : document.dir.toLowerCase());\nexport { o as i };"],
+  "mappings": ";AAGA,IAAM,IAAI,CAAAA,OAAKA,MAAK,OAAOA,GAAE,MAAM,UAAUA,GAAE,IAAI,YAAY,IAAI,WAAW,SAAS,YAAY,WAAW,WAAW,SAAS,SAAS,IAAI,YAAY;",
+  "names": ["o"]
+}

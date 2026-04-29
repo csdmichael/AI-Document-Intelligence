@@ -5,6 +5,7 @@ All Azure access uses managed identity via DefaultAzureCredential.
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from azure.identity import DefaultAzureCredential
 from azure.cosmos import CosmosClient
 from azure.storage.blob import BlobServiceClient
@@ -89,6 +90,25 @@ def list_blobs():
                 url=f"{BLOB_URL}/{STORAGE_CONTAINER_NAME}/{b.name}",
             ))
     return blobs
+
+
+@app.get("/api/blobs/{blob_name:path}")
+def get_blob_content(blob_name: str):
+    """Proxy a blob's content for PDF viewing in the browser."""
+    container = get_blob_container()
+    try:
+        blob_client = container.get_blob_client(blob_name)
+        stream = blob_client.download_blob()
+        return StreamingResponse(
+            stream.chunks(),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"inline; filename=\"{blob_name}\"",
+                "Cache-Control": "public, max-age=3600",
+            },
+        )
+    except Exception:
+        raise HTTPException(status_code=404, detail=f"Blob '{blob_name}' not found")
 
 
 # ---------------------------------------------------------------------------

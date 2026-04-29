@@ -3,15 +3,17 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { IonSpinner, IonButton } from '@ionic/angular/standalone';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ApiService } from '../../api.service';
 import { DocumentDetail, Field, Section, CATEGORY_COLORS } from '../../models';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-document-detail',
   standalone: true,
   imports: [CommonModule, RouterLink, FormsModule, IonSpinner, IonButton],
   template: `
-    <div style="padding: 1.5rem; max-width: 1400px; margin: 0 auto;">
+    <div style="padding: 1rem; max-width: 100%; margin: 0 auto;">
       <div *ngIf="loading" style="text-align: center; padding: 3rem;">
         <ion-spinner name="crescent"></ion-spinner>
         <p>Loading document...</p>
@@ -22,163 +24,265 @@ import { DocumentDetail, Field, Section, CATEGORY_COLORS } from '../../models';
       </div>
 
       <ng-container *ngIf="!loading && !error && doc">
-        <a class="doc-link" routerLink="/" style="display: inline-block; margin-bottom: 1rem; font-size: 0.9rem;">
-          ← Back to Dashboard
-        </a>
-
-        <!-- Document Header with KPIs -->
-        <div class="card">
-          <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 1rem;">
-            <div>
-              <h2 style="margin-bottom: 0.25rem;">{{ doc.fileName }}</h2>
-              <p style="color: #666; font-size: 0.85rem; margin: 0;">
-                {{ doc.stateName }} ({{ doc.state }}) &bull; Status:
-                <span [class]="'status-badge status-' + doc.status">{{ doc.status }}</span>
-              </p>
-            </div>
-            <div style="text-align: right;">
-              <span [class]="'badge ' + doc.confidenceCategory" style="font-size: 1rem; padding: 0.3rem 1rem;">
-                {{ doc.confidenceCategory }} {{ (doc.overallConfidence * 100).toFixed(1) }}%
-              </span>
-              <div class="kpi-bar" *ngIf="doc.confidenceLabel" style="margin-top: 0.25rem; color: #888; font-size: 0.75rem;">
-                {{ doc.confidenceLabel }}
-              </div>
-            </div>
+        <!-- Header Bar -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <a class="doc-link" routerLink="/" style="font-size: 0.9rem;">← Back</a>
+            <h2 style="margin: 0; font-size: 1.1rem; color: #004578;">{{ doc.fileName }}</h2>
+            <span style="color: #666; font-size: 0.85rem;">{{ doc.stateName }} ({{ doc.state }})</span>
+            <span [class]="'status-badge status-' + doc.status">{{ doc.status }}</span>
           </div>
-
-          <!-- Document-Level KPIs -->
-          <div class="doc-kpi-grid">
-            <div class="kpi-card">
-              <div class="kpi-value">{{ doc.totalSections }}</div>
-              <div class="kpi-label">Sections</div>
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <span [class]="'badge ' + doc.confidenceCategory" style="font-size: 0.95rem; padding: 0.25rem 0.8rem;">
+              {{ doc.confidenceCategory }} {{ (doc.overallConfidence * 100).toFixed(1) }}%
+            </span>
+            <div class="kpi-mini">
+              <span class="kpi-value">{{ doc.totalFields }}</span>
+              <span class="kpi-label">Fields</span>
             </div>
-            <div class="kpi-card">
-              <div class="kpi-value">{{ doc.totalFields }}</div>
-              <div class="kpi-label">Total Fields</div>
+            <div class="kpi-mini">
+              <span class="kpi-value">{{ correctedFieldCount }}</span>
+              <span class="kpi-label">Corrected</span>
             </div>
-            <div class="kpi-card">
-              <div class="kpi-value">{{ correctedFieldCount }}</div>
-              <div class="kpi-label">Corrections</div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-value">{{ doc.parsedAt ? (doc.parsedAt | date:'shortDate') : '-' }}</div>
-              <div class="kpi-label">Parsed</div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-value">{{ doc.reviewedBy || 'Not yet' }}</div>
-              <div class="kpi-label">Reviewed By</div>
-            </div>
+            <ion-button *ngIf="doc.status !== 'approved'"
+                        color="success" size="small"
+                        (click)="handleApprove()">
+              ✓ Approve
+            </ion-button>
+            <span *ngIf="doc.status === 'approved'" style="color: #2e7d32; font-weight: 600; font-size: 0.85rem;">
+              ✓ Approved
+            </span>
           </div>
-
-          <ion-button *ngIf="doc.status !== 'approved'"
-                      color="success" size="small"
-                      style="margin-top: 0.75rem;"
-                      (click)="handleApprove()">
-            ✓ Approve Document
-          </ion-button>
-          <span *ngIf="doc.status === 'approved'" style="color: #2e7d32; font-weight: 600; margin-top: 0.75rem; display: inline-block;">
-            ✓ Approved {{ doc.reviewedAt ? 'on ' + (doc.reviewedAt | date:'shortDate') : '' }}
-          </span>
         </div>
 
-        <!-- Sections with KPIs -->
-        <div *ngFor="let section of doc.sections" class="card" style="border-left: 4px solid {{ getSectionColor(section) }};">
-          <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; flex-wrap: wrap; gap: 0.5rem;"
-               (click)="toggleSection(section.sectionIndex)">
-            <div>
-              <strong style="font-size: 1rem;">{{ section.sectionName }}</strong>
-              <span style="color: #888; font-size: 0.8rem; margin-left: 0.5rem;">
-                ({{ section.fields.length }} fields)
-              </span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 1rem;">
-              <!-- Section KPIs -->
-              <div class="kpi-mini">
-                <span class="kpi-value" [style.color]="getSectionColor(section)">{{ (section.sectionConfidence * 100).toFixed(1) }}%</span>
-                <span class="kpi-label">Confidence</span>
+        <!-- Split Pane: PDF Left | Fields Right -->
+        <div class="split-pane">
+          <!-- Left: PDF Viewer -->
+          <div class="split-left">
+            <div class="pdf-container">
+              <iframe *ngIf="pdfUrl" [src]="pdfUrl" class="pdf-frame"></iframe>
+              <div *ngIf="!pdfUrl" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999;">
+                <p>PDF preview not available</p>
               </div>
-              <div class="kpi-mini">
-                <span class="kpi-value">{{ getCorrectedCount(section) }}/{{ section.fields.length }}</span>
-                <span class="kpi-label">Corrected</span>
-              </div>
-              <span [class]="'badge ' + section.confidenceCategory">
-                {{ section.confidenceCategory }}
-              </span>
-              <span style="font-size: 0.8rem; color: #888;">
-                {{ expandedSection === section.sectionIndex ? '▲' : '▼' }}
-              </span>
             </div>
           </div>
 
-          <!-- Expanded Section Fields -->
-          <div *ngIf="expandedSection === section.sectionIndex"
-               style="margin-top: 1rem;"
-               (click)="$event.stopPropagation()">
-            <table>
-              <thead>
-                <tr>
-                  <th>Field</th>
-                  <th>Extracted Value</th>
-                  <th>Confidence</th>
-                  <th>Corrected Value</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let field of section.fields"
-                    [style.background]="field.correctedValue ? '#f1f8e9' : ''">
-                  <td style="font-weight: 500;">
-                    {{ field.fieldName }}
-                  </td>
-                  <td>
-                    <span *ngIf="field.extractedValue">{{ field.extractedValue }}</span>
-                    <em *ngIf="!field.extractedValue" style="color: #999;">empty</em>
-                  </td>
-                  <td>
-                    <div style="display: flex; align-items: center; gap: 0.4rem;">
-                      <span [class]="'badge ' + field.confidenceCategory">
+          <!-- Right: Parsed Sections & Fields -->
+          <div class="split-right">
+            <!-- Sections -->
+            <div *ngFor="let section of doc.sections" class="section-panel" [style.border-left-color]="getSectionColor(section)">
+              <div class="section-header" (click)="toggleSection(section.sectionIndex)">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <strong>{{ section.sectionName }}</strong>
+                  <span style="color: #888; font-size: 0.75rem;">({{ section.fields.length }} fields)</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                  <div class="kpi-mini">
+                    <span class="kpi-value" [style.color]="getSectionColor(section)">{{ (section.sectionConfidence * 100).toFixed(1) }}%</span>
+                    <span class="kpi-label">Score</span>
+                  </div>
+                  <div class="kpi-mini">
+                    <span class="kpi-value">{{ getCorrectedCount(section) }}/{{ section.fields.length }}</span>
+                    <span class="kpi-label">Fixed</span>
+                  </div>
+                  <span [class]="'badge ' + section.confidenceCategory" style="font-size: 0.7rem;">
+                    {{ section.confidenceCategory }}
+                  </span>
+                  <span style="font-size: 0.75rem; color: #888;">
+                    {{ expandedSection === section.sectionIndex ? '▲' : '▼' }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Fields Table -->
+              <div *ngIf="expandedSection === section.sectionIndex" class="fields-panel" (click)="$event.stopPropagation()">
+                <div *ngFor="let field of section.fields" class="field-row" [class.corrected]="!!field.correctedValue">
+                  <div class="field-name">{{ field.fieldName }}</div>
+                  <div class="field-value-area">
+                    <div class="field-extracted">
+                      <span *ngIf="field.extractedValue">{{ field.extractedValue }}</span>
+                      <em *ngIf="!field.extractedValue" style="color: #bbb;">empty</em>
+                    </div>
+                    <div class="field-confidence">
+                      <span [class]="'badge ' + field.confidenceCategory" style="font-size: 0.7rem;">
                         {{ (field.confidence * 100).toFixed(1) }}%
                       </span>
-                      <span class="confidence-bar">
+                      <span class="confidence-bar" style="width: 50px;">
                         <span class="confidence-fill" [style.width]="(field.confidence * 100) + '%'"
                               [style.background]="getFieldBarColor(field)"></span>
                       </span>
                     </div>
-                  </td>
-                  <td>
-                    <span *ngIf="field.correctedValue" style="color: #2e7d32; font-weight: 500;">
-                      {{ field.correctedValue }}<br/>
-                      <small style="color: #888;">by {{ field.correctedBy }} · {{ field.correctedAt | date:'short' }}</small>
-                    </span>
-                    <span *ngIf="!field.correctedValue" style="color: #ccc;">—</span>
-                  </td>
-                  <td>
+                  </div>
+                  <div class="field-correction">
                     <ng-container *ngIf="editingField?.sectionIndex !== section.sectionIndex || editingField?.fieldName !== field.fieldName">
-                      <button class="btn-edit" (click)="startEdit(section.sectionIndex, field)">Edit</button>
+                      <span *ngIf="field.correctedValue" class="corrected-value">
+                        {{ field.correctedValue }}
+                        <small>({{ field.correctedBy }})</small>
+                      </span>
+                      <button class="btn-edit btn-sm" (click)="startEdit(section.sectionIndex, field)">
+                        {{ field.correctedValue ? 'Re-edit' : 'Edit' }}
+                      </button>
                     </ng-container>
                     <ng-container *ngIf="editingField?.sectionIndex === section.sectionIndex && editingField?.fieldName === field.fieldName">
-                      <div style="display: flex; gap: 0.3rem; align-items: center;">
-                        <input type="text" [(ngModel)]="editValue"
-                               style="min-width: 120px; border: 1px solid #ccc; border-radius: 4px; padding: 0.35rem 0.5rem; font-size: 0.85rem;" />
-                        <button class="btn-save" [disabled]="saving" (click)="saveEdit(section.sectionIndex, field.fieldName)">
-                          {{ saving ? '...' : 'Save' }}
+                      <div class="edit-inline">
+                        <input type="text" [(ngModel)]="editValue" class="edit-input" (keydown.enter)="saveEdit(section.sectionIndex, field.fieldName)" />
+                        <button class="btn-save btn-sm" [disabled]="saving" (click)="saveEdit(section.sectionIndex, field.fieldName)">
+                          {{ saving ? '...' : '✓' }}
                         </button>
-                        <button class="btn-cancel" (click)="cancelEdit()">Cancel</button>
+                        <button class="btn-cancel btn-sm" (click)="cancelEdit()">✗</button>
                       </div>
                     </ng-container>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </ng-container>
     </div>
   `,
+  styles: [`
+    .split-pane {
+      display: flex;
+      gap: 1rem;
+      height: calc(100vh - 180px);
+      min-height: 500px;
+    }
+    .split-left {
+      flex: 1;
+      min-width: 0;
+    }
+    .split-right {
+      flex: 1;
+      min-width: 0;
+      overflow-y: auto;
+    }
+    .pdf-container {
+      height: 100%;
+      background: #e0e0e0;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .pdf-frame {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    .section-panel {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      margin-bottom: 0.6rem;
+      border-left: 4px solid #ccc;
+      overflow: hidden;
+    }
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.6rem 0.8rem;
+      cursor: pointer;
+      background: #fafafa;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+    }
+    .section-header:hover { background: #f0f4f8; }
+    .fields-panel { padding: 0; }
+    .field-row {
+      display: grid;
+      grid-template-columns: 160px 1fr auto;
+      gap: 0.5rem;
+      padding: 0.4rem 0.8rem;
+      border-bottom: 1px solid #f0f0f0;
+      align-items: center;
+      font-size: 0.82rem;
+    }
+    .field-row:hover { background: #fafcff; }
+    .field-row.corrected { background: #f1f8e9; }
+    .field-name {
+      font-weight: 600;
+      color: #333;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .field-value-area {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .field-extracted {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .field-confidence {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      flex-shrink: 0;
+    }
+    .field-correction {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      min-width: 140px;
+      justify-content: flex-end;
+    }
+    .corrected-value {
+      color: #2e7d32;
+      font-weight: 500;
+      font-size: 0.78rem;
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .corrected-value small { color: #888; }
+    .edit-inline {
+      display: flex;
+      gap: 0.2rem;
+      align-items: center;
+    }
+    .edit-input {
+      width: 120px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 0.2rem 0.4rem;
+      font-size: 0.8rem;
+    }
+    .edit-input:focus {
+      outline: none;
+      border-color: #0078d4;
+      box-shadow: 0 0 0 2px rgba(0,120,212,0.15);
+    }
+    .btn-sm {
+      padding: 0.15rem 0.5rem;
+      font-size: 0.75rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .btn-edit { background: #0078d4; color: white; }
+    .btn-edit:hover { background: #005a9e; }
+    .btn-save { background: #2e7d32; color: white; }
+    .btn-save:hover { background: #1b5e20; }
+    .btn-cancel { background: #eee; color: #333; }
+    .btn-cancel:hover { background: #ddd; }
+
+    @media (max-width: 900px) {
+      .split-pane { flex-direction: column; height: auto; }
+      .split-left { height: 400px; }
+      .field-row { grid-template-columns: 1fr; }
+    }
+  `],
 })
 export class DocumentDetailPage implements OnInit {
   doc: DocumentDetail | null = null;
-  expandedSection: number | null = null;
+  pdfUrl: SafeResourceUrl | null = null;
+  expandedSection: number | null = 0;
   loading = true;
   error = '';
   editingField: { sectionIndex: number; fieldName: string } | null = null;
@@ -188,11 +292,19 @@ export class DocumentDetailPage implements OnInit {
 
   private docId = '';
 
-  constructor(private route: ActivatedRoute, private api: ApiService) {}
+  constructor(
+    private route: ActivatedRoute,
+    private api: ApiService,
+    private sanitizer: DomSanitizer,
+  ) {}
 
   ngOnInit(): void {
-    this.docId = this.route.snapshot.paramMap.get('id') || '';
-    this.loadDoc();
+    this.route.paramMap.subscribe(params => {
+      this.docId = params.get('id') || '';
+      if (this.docId) {
+        this.loadDoc();
+      }
+    });
   }
 
   toggleSection(index: number): void {
@@ -256,6 +368,16 @@ export class DocumentDetailPage implements OnInit {
           for (const f of s.fields || []) {
             if (f.correctedValue) this.correctedFieldCount++;
           }
+        }
+        // Build PDF URL from the blob proxy endpoint
+        if (data.fileName) {
+          const baseUrl = environment.apiBaseUrl || '';
+          const pdfPath = `${baseUrl}/api/blobs/${encodeURIComponent(data.fileName)}`;
+          this.pdfUrl = this.sanitizer.bypassSecurityTrustResourceUrl(pdfPath);
+        }
+        // Auto-expand first section
+        if (data.sections?.length > 0 && this.expandedSection === null) {
+          this.expandedSection = data.sections[0].sectionIndex;
         }
         this.loading = false;
       },
