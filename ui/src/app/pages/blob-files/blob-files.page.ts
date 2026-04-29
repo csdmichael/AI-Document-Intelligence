@@ -92,14 +92,6 @@ interface BlobRow {
               <option value="All">All States</option>
               <option *ngFor="let s of states" [value]="s">{{ s }}</option>
             </select>
-            <select class="state-select" [value]="tierFilter" (change)="tierFilter = $any($event.target).value; applyFilters()">
-              <option value="All">All Tiers</option>
-              <option value="blue">Blue (Clean)</option>
-              <option value="green">Green (Slight)</option>
-              <option value="yellow">Yellow (Moderate)</option>
-              <option value="red">Red (Heavy)</option>
-              <option value="standard">Standard</option>
-            </select>
           </div>
           <span style="font-size: 0.8rem; color: #888;">{{ filteredRows.length }} files shown</span>
         </div>
@@ -268,7 +260,6 @@ export class BlobFilesPage implements OnInit {
 
   searchTerm = '';
   stateFilter = 'All';
-  tierFilter = 'All';
   parseFilter: 'all' | 'parsed' | 'unparsed' = 'all';
   states: string[] = [];
 
@@ -351,10 +342,6 @@ export class BlobFilesPage implements OnInit {
     else if (this.parseFilter === 'unparsed') rows = rows.filter(r => !r.parsed);
 
     if (this.stateFilter !== 'All') rows = rows.filter(r => r.stateAbbr === this.stateFilter);
-    if (this.tierFilter !== 'All') {
-      if (this.tierFilter === 'standard') rows = rows.filter(r => !r.tier);
-      else rows = rows.filter(r => r.tier === this.tierFilter);
-    }
 
     if (this.searchTerm.trim()) {
       const term = this.searchTerm.toLowerCase();

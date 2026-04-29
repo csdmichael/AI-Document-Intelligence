@@ -110,9 +110,9 @@ interface DocGroup {
           <!-- State Filter -->
           <div style="display: flex; align-items: center; gap: 0.5rem;">
             <label style="font-size: 0.8rem; color: #666;">State:</label>
-            <select class="state-select" [value]="stateFilter" (change)="setStateFilter($any($event.target).value)">
+            <select class="state-select" [(ngModel)]="stateFilter" (ngModelChange)="applyFilters()">
               <option value="All">All States</option>
-              <option *ngFor="let s of states" [value]="s">{{ s }}</option>
+              <option *ngFor="let s of states" [ngValue]="s">{{ stateNameMap[s] || s }}</option>
             </select>
           </div>
 
@@ -318,6 +318,7 @@ export class DashboardPage implements OnInit {
   reviewFilter: 'all' | 'reviewed' | 'not-reviewed' = 'all';
   stateFilter = 'All';
   states: string[] = [];
+  stateNameMap: Record<string, string> = {};
   categoryLabels = CATEGORY_LABELS;
   statKeys: ('blue' | 'green' | 'yellow' | 'red')[] = ['blue', 'green', 'yellow', 'red'];
   pageSize = PAGE_SIZE;
@@ -344,10 +345,7 @@ export class DashboardPage implements OnInit {
     this.applyFilters();
   }
 
-  setStateFilter(state: string): void {
-    this.stateFilter = state;
-    this.applyFilters();
-  }
+
 
   shortModelName(modelSource: string | null): string {
     if (!modelSource) return 'layout';
@@ -486,7 +484,11 @@ export class DashboardPage implements OnInit {
         this.stats = stats;
         this.retraining = retraining;
         this.customModel = customModel;
-        this.states = [...new Set(docs.map(d => d.state))].sort();
+        this.stateNameMap = {};
+        for (const d of docs) {
+          if (d.state && d.stateName) this.stateNameMap[d.state] = d.stateName;
+        }
+        this.states = [...new Set(docs.map(d => d.state))].filter(s => !!s).sort();
         this.applyFilters();
         this.loading = false;
       },
@@ -497,7 +499,7 @@ export class DashboardPage implements OnInit {
     });
   }
 
-  private applyFilters(): void {
+  applyFilters(): void {
     let filtered = [...this.allDocs];
 
     if (this.categoryFilter !== 'All') {
