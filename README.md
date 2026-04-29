@@ -553,7 +553,7 @@ Show the architecture diagram at the top of this README or open `docs/Architectu
 
 #### Step 1: Show the UI Portal
 
-1. **Open** the UI at [https://white-ground-036f98b1e.7.azurestaticapps.net](https://white-ground-036f98b1e.7.azurestaticapps.net)
+1. **Open** the UI at [https://ui-taxforms.azurewebsites.net](https://ui-taxforms.azurewebsites.net)
 2. **Point out** the left-side navigation menu (Angular Ionic with responsive split-pane)
 3. **Click** "Blob Files" in the menu
 
@@ -687,7 +687,7 @@ Open [https://api-taxforms.azurewebsites.net/redoc](https://api-taxforms.azurewe
 
 Before the demo, verify:
 
-- [ ] UI portal loads at https://white-ground-036f98b1e.7.azurestaticapps.net
+- [ ] UI portal loads at https://ui-taxforms.azurewebsites.net
 - [ ] API health check returns 200 at https://api-taxforms.azurewebsites.net/health
 - [ ] Swagger loads at https://api-taxforms.azurewebsites.net/docs
 - [ ] Parsed documents appear with confidence badges
@@ -698,9 +698,41 @@ Before the demo, verify:
 
 ### Follow-Up Resources
 
-- **Azure AI Document Intelligence**: [learn.microsoft.com/azure/ai-services/document-intelligence](https://learn.microsoft.com/azure/ai-services/document-intelligence/)
-- **Azure Cosmos DB**: [learn.microsoft.com/azure/cosmos-db](https://learn.microsoft.com/azure/cosmos-db/)
 - **Presenter LinkedIn**: [linkedin.com/in/michael-yaacoub-7a46436](https://www.linkedin.com/in/michael-yaacoub-7a46436/)
+
+---
+
+## References
+
+### Azure AI Services
+
+- **Azure AI Document Intelligence** — [learn.microsoft.com/azure/ai-services/document-intelligence](https://learn.microsoft.com/azure/ai-services/document-intelligence/)
+- **Document Intelligence Models Overview** — [learn.microsoft.com/azure/ai-services/document-intelligence/concept-model-overview](https://learn.microsoft.com/azure/ai-services/document-intelligence/concept-model-overview)
+- **Custom Document Intelligence Models** — [learn.microsoft.com/azure/ai-services/document-intelligence/concept-custom](https://learn.microsoft.com/azure/ai-services/document-intelligence/concept-custom)
+- **Microsoft Foundry (AI Studio)** — [learn.microsoft.com/azure/ai-studio](https://learn.microsoft.com/azure/ai-studio/)
+
+### Data & Storage
+
+- **Azure Cosmos DB** — [learn.microsoft.com/azure/cosmos-db](https://learn.microsoft.com/azure/cosmos-db/)
+- **Azure Cosmos DB for NoSQL** — [learn.microsoft.com/azure/cosmos-db/nosql](https://learn.microsoft.com/azure/cosmos-db/nosql/)
+- **Azure Blob Storage** — [learn.microsoft.com/azure/storage/blobs](https://learn.microsoft.com/azure/storage/blobs/)
+- **Azure AI Search** — [learn.microsoft.com/azure/search](https://learn.microsoft.com/azure/search/)
+
+### Compute & Hosting
+
+- **Azure App Service** — [learn.microsoft.com/azure/app-service](https://learn.microsoft.com/azure/app-service/)
+
+### Security & Identity
+
+- **Managed Identities for Azure Resources** — [learn.microsoft.com/entra/identity/managed-identities-azure-resources/overview](https://learn.microsoft.com/entra/identity/managed-identities-azure-resources/overview)
+- **Azure RBAC Overview** — [learn.microsoft.com/azure/role-based-access-control/overview](https://learn.microsoft.com/azure/role-based-access-control/overview)
+- **Azure Private Endpoints** — [learn.microsoft.com/azure/private-link/private-endpoint-overview](https://learn.microsoft.com/azure/private-link/private-endpoint-overview)
+- **Azure Identity Client Library for Python** — [learn.microsoft.com/python/api/overview/azure/identity-readme](https://learn.microsoft.com/python/api/overview/azure/identity-readme)
+
+### Infrastructure & DevOps
+
+- **Bicep Overview** — [learn.microsoft.com/azure/azure-resource-manager/bicep/overview](https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview)
+- **GitHub Actions for Azure** — [learn.microsoft.com/azure/developer/github/connect-from-azure](https://learn.microsoft.com/azure/developer/github/connect-from-azure)
 
 ---
 
