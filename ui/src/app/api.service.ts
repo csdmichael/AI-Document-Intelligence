@@ -48,6 +48,13 @@ export class ApiService {
     );
   }
 
+  bulkUpdateStatus(documentIds: string[], status: string, updatedBy: string): Observable<{ updated: string[]; notFound: string[] }> {
+    return this.http.put<{ updated: string[]; notFound: string[] }>(
+      `${this.base}/documents/bulk-status`,
+      { documentIds, status, updatedBy }
+    );
+  }
+
   getRetrainingStats(): Observable<RetrainingStatus> {
     return this.http.get<RetrainingStatus>(`${this.base}/retraining/stats`);
   }

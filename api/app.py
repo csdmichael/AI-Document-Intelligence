@@ -18,7 +18,7 @@ from api.config import (
     DOCUMENT_INTELLIGENCE_ENDPOINT, CORS_ORIGINS,
 )
 from api.models import (
-    FieldUpdate, DocumentSummary, DocumentDetail,
+    FieldUpdate, BulkStatusUpdate, DocumentSummary, DocumentDetail,
     ConfidenceStats, BlobFile, RetrainingStatus,
     CustomModelStatus, TrainRequest,
 )
@@ -256,6 +256,40 @@ def update_field(document_id: str, section_index: int, field_name: str, update: 
     container.upsert_item(doc)
 
     return {"message": "Field updated", "documentId": document_id, "field": field_name}
+
+
+@app.put("/api/documents/bulk-status")
+def bulk_update_status(update: BulkStatusUpdate):
+    """Update the status of multiple documents at once."""
+    if update.status not in ("reviewed", "approved"):
+        raise HTTPException(status_code=400, detail="Status must be 'reviewed' or 'approved'")
+    if not update.documentIds:
+        raise HTTPException(status_code=400, detail="documentIds must not be empty")
+
+    container = get_cosmos_container()
+    updated = []
+    not_found = []
+    now = datetime.now(timezone.utc).isoformat()
+
+    for doc_id in update.documentIds:
+        query = "SELECT * FROM c WHERE c.id = @id"
+        params = [{"name": "@id", "value": doc_id}]
+        items = list(container.query_items(query=query, parameters=params, enable_cross_partition_query=True))
+        if not items:
+            not_found.append(doc_id)
+            continue
+        doc = items[0]
+        doc["status"] = update.status
+        if update.status == "reviewed":
+            doc["reviewedBy"] = update.updatedBy
+            doc["reviewedAt"] = now
+        else:
+            doc["approvedBy"] = update.updatedBy
+            doc["approvedAt"] = now
+        container.upsert_item(doc)
+        updated.append(doc_id)
+
+    return {"updated": updated, "notFound": not_found}
 
 
 @app.put("/api/documents/{document_id}/approve")

@@ -106,6 +106,12 @@ class CustomModelStatus(BaseModel):
     readyToTrain: bool
 
 
+class BulkStatusUpdate(BaseModel):
+    documentIds: list[str]
+    status: str
+    updatedBy: str
+
+
 class TrainRequest(BaseModel):
     modelId: Optional[str] = None
     buildMode: Optional[str] = "neural"

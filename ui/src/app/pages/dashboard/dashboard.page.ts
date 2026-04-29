@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { IonSpinner } from '@ionic/angular/standalone';
 import { forkJoin, catchError, of } from 'rxjs';
 import { ApiService } from '../../api.service';
@@ -24,7 +25,7 @@ interface DocGroup {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, IonSpinner],
+  imports: [CommonModule, FormsModule, IonSpinner],
   template: `
     <div class="page-container" style="padding: 1.5rem; max-width: 1400px; margin: 0 auto;">
       <div *ngIf="loading" style="text-align: center; padding: 3rem;">
@@ -128,6 +129,19 @@ interface DocGroup {
           </div>
         </div>
 
+        <!-- Bulk Actions Bar -->
+        <div *ngIf="selectedIds.size > 0" class="bulk-bar">
+          <span>{{ selectedIds.size }} document{{ selectedIds.size > 1 ? 's' : '' }} selected</span>
+          <button class="bulk-btn reviewed" (click)="bulkSetStatus('reviewed')" [disabled]="bulkLoading">
+            ✓ Mark Reviewed
+          </button>
+          <button class="bulk-btn approved" (click)="bulkSetStatus('approved')" [disabled]="bulkLoading">
+            ✔ Mark Approved
+          </button>
+          <button class="bulk-btn clear" (click)="clearSelection()">✕ Clear</button>
+          <ion-spinner *ngIf="bulkLoading" name="crescent" style="width: 18px; height: 18px;"></ion-spinner>
+        </div>
+
         <!-- Documents Grouped by Confidence Category -->
         <div *ngFor="let group of groupedDocs" class="card" [style.border-left]="'4px solid ' + getCatColor(group.category)">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
@@ -158,6 +172,9 @@ interface DocGroup {
             <table>
               <thead>
                 <tr>
+                  <th style="width: 36px;">
+                    <input type="checkbox" [checked]="isGroupAllSelected(group)" [indeterminate]="isGroupIndeterminate(group)" (change)="toggleGroupSelection(group, $event)" title="Select all in group" />
+                  </th>
                   <th>#</th><th>File Name</th><th>State</th><th>Model</th><th>Status</th>
                   <th>Confidence</th><th class="hide-tablet">Sections</th><th class="hide-tablet">Fields</th><th>Parsed</th>
                 </tr>
@@ -165,26 +182,29 @@ interface DocGroup {
               <tbody>
                 <tr *ngFor="let doc of getPageDocs(group); let i = index"
                     style="cursor: pointer;"
-                    (click)="openDocument(doc.id)">
-                  <td>{{ (group.page - 1) * pageSize + i + 1 }}</td>
-                  <td><span class="doc-link">{{ doc.fileName }}</span></td>
-                  <td>{{ doc.stateName }} ({{ doc.state }})</td>
-                  <td>
+                    [class.row-selected]="selectedIds.has(doc.id)">
+                  <td (click)="$event.stopPropagation()">
+                    <input type="checkbox" [checked]="selectedIds.has(doc.id)" (change)="toggleDocSelection(doc.id)" />
+                  </td>
+                  <td (click)="openDocument(doc.id)">{{ (group.page - 1) * pageSize + i + 1 }}</td>
+                  <td (click)="openDocument(doc.id)"><span class="doc-link">{{ doc.fileName }}</span></td>
+                  <td (click)="openDocument(doc.id)">{{ doc.stateName }} ({{ doc.state }})</td>
+                  <td (click)="openDocument(doc.id)">
                     <span class="model-badge" [title]="doc.modelSource || ''">
                       {{ shortModelName(doc.modelSource) }}
                     </span>
                   </td>
-                  <td>
+                  <td (click)="openDocument(doc.id)">
                     <span [class]="'status-badge status-' + doc.status">{{ doc.status }}</span>
                   </td>
-                  <td>
+                  <td (click)="openDocument(doc.id)">
                     <span [class]="'badge ' + doc.confidenceCategory">
                       {{ (doc.overallConfidence * 100).toFixed(1) }}%
                     </span>
                   </td>
-                  <td class="hide-tablet">{{ doc.totalSections }}</td>
-                  <td class="hide-tablet">{{ doc.totalFields }}</td>
-                  <td>{{ doc.parsedAt ? (doc.parsedAt | date:'short') : '-' }}</td>
+                  <td class="hide-tablet" (click)="openDocument(doc.id)">{{ doc.totalSections }}</td>
+                  <td class="hide-tablet" (click)="openDocument(doc.id)">{{ doc.totalFields }}</td>
+                  <td (click)="openDocument(doc.id)">{{ doc.parsedAt ? (doc.parsedAt | date:'short') : '-' }}</td>
                 </tr>
               </tbody>
             </table>
@@ -194,9 +214,10 @@ interface DocGroup {
           <div class="mobile-cards">
             <div *ngFor="let doc of getPageDocs(group); let i = index"
                  class="doc-card-mobile"
-                 (click)="openDocument(doc.id)">
+                 [class.row-selected]="selectedIds.has(doc.id)">
               <div class="doc-card-header">
-                <span class="doc-card-title">{{ doc.fileName }}</span>
+                <input type="checkbox" [checked]="selectedIds.has(doc.id)" (change)="toggleDocSelection(doc.id)" (click)="$event.stopPropagation()" style="margin-right: 0.5rem;" />
+                <span class="doc-card-title" (click)="openDocument(doc.id)" style="cursor: pointer;">{{ doc.fileName }}</span>
                 <span [class]="'badge ' + doc.confidenceCategory">
                   {{ (doc.overallConfidence * 100).toFixed(1) }}%
                 </span>
@@ -251,6 +272,38 @@ interface DocGroup {
       text-overflow: ellipsis;
       vertical-align: middle;
     }
+    .bulk-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.6rem 1rem;
+      margin-bottom: 1rem;
+      background: #e3f2fd;
+      border: 1px solid #90caf9;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #1565c0;
+      flex-wrap: wrap;
+    }
+    .bulk-btn {
+      border: none;
+      border-radius: 6px;
+      padding: 0.35rem 0.9rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .bulk-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .bulk-btn.reviewed { background: #c8e6c9; color: #2e7d32; }
+    .bulk-btn.reviewed:hover:not(:disabled) { background: #a5d6a7; }
+    .bulk-btn.approved { background: #bbdefb; color: #1565c0; }
+    .bulk-btn.approved:hover:not(:disabled) { background: #90caf9; }
+    .bulk-btn.clear { background: #eee; color: #555; }
+    .bulk-btn.clear:hover { background: #ddd; }
+    .row-selected { background: #e3f2fd !important; }
+    input[type="checkbox"] { cursor: pointer; width: 16px; height: 16px; accent-color: #1565c0; }
   `],
 })
 export class DashboardPage implements OnInit {
@@ -268,6 +321,8 @@ export class DashboardPage implements OnInit {
   categoryLabels = CATEGORY_LABELS;
   statKeys: ('blue' | 'green' | 'yellow' | 'red')[] = ['blue', 'green', 'yellow', 'red'];
   pageSize = PAGE_SIZE;
+  selectedIds = new Set<string>();
+  bulkLoading = false;
 
   constructor(private api: ApiService, private router: Router) {}
 
@@ -362,6 +417,59 @@ export class DashboardPage implements OnInit {
         URL.revokeObjectURL(url);
       },
       error: () => alert('Failed to export training data'),
+    });
+  }
+
+  // --- Multi-select ---
+  toggleDocSelection(id: string): void {
+    if (this.selectedIds.has(id)) {
+      this.selectedIds.delete(id);
+    } else {
+      this.selectedIds.add(id);
+    }
+  }
+
+  toggleGroupSelection(group: DocGroup, event: Event): void {
+    const checked = (event.target as HTMLInputElement).checked;
+    const pageDocs = this.getPageDocs(group);
+    for (const doc of pageDocs) {
+      if (checked) {
+        this.selectedIds.add(doc.id);
+      } else {
+        this.selectedIds.delete(doc.id);
+      }
+    }
+  }
+
+  isGroupAllSelected(group: DocGroup): boolean {
+    const pageDocs = this.getPageDocs(group);
+    return pageDocs.length > 0 && pageDocs.every(d => this.selectedIds.has(d.id));
+  }
+
+  isGroupIndeterminate(group: DocGroup): boolean {
+    const pageDocs = this.getPageDocs(group);
+    const selectedCount = pageDocs.filter(d => this.selectedIds.has(d.id)).length;
+    return selectedCount > 0 && selectedCount < pageDocs.length;
+  }
+
+  clearSelection(): void {
+    this.selectedIds.clear();
+  }
+
+  bulkSetStatus(status: 'reviewed' | 'approved'): void {
+    const ids = Array.from(this.selectedIds);
+    if (ids.length === 0) return;
+    this.bulkLoading = true;
+    this.api.bulkUpdateStatus(ids, status, 'dashboard-user').subscribe({
+      next: () => {
+        this.selectedIds.clear();
+        this.bulkLoading = false;
+        this.loadData();
+      },
+      error: () => {
+        alert('Failed to update documents');
+        this.bulkLoading = false;
+      },
     });
   }
 
