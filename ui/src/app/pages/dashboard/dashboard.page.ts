@@ -26,7 +26,7 @@ interface DocGroup {
   standalone: true,
   imports: [CommonModule, IonSpinner],
   template: `
-    <div style="padding: 1.5rem; max-width: 1400px; margin: 0 auto;">
+    <div class="page-container" style="padding: 1.5rem; max-width: 1400px; margin: 0 auto;">
       <div *ngIf="loading" style="text-align: center; padding: 3rem;">
         <ion-spinner name="crescent"></ion-spinner>
         <p>Loading dashboard...</p>
@@ -153,39 +153,69 @@ interface DocGroup {
               </div>
             </div>
           </div>
-          <table>
-            <thead>
-              <tr>
-                <th>#</th><th>File Name</th><th>State</th><th>Model</th><th>Status</th>
-                <th>Confidence</th><th>Sections</th><th>Fields</th><th>Parsed</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let doc of getPageDocs(group); let i = index"
-                  style="cursor: pointer;"
-                  (click)="openDocument(doc.id)">
-                <td>{{ (group.page - 1) * pageSize + i + 1 }}</td>
-                <td><span class="doc-link">{{ doc.fileName }}</span></td>
-                <td>{{ doc.stateName }} ({{ doc.state }})</td>
-                <td>
-                  <span class="model-badge" [title]="doc.modelSource || ''">
-                    {{ shortModelName(doc.modelSource) }}
-                  </span>
-                </td>
-                <td>
+          <!-- Desktop/Tablet: Table view -->
+          <div class="desktop-table table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th><th>File Name</th><th>State</th><th>Model</th><th>Status</th>
+                  <th>Confidence</th><th class="hide-tablet">Sections</th><th class="hide-tablet">Fields</th><th>Parsed</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let doc of getPageDocs(group); let i = index"
+                    style="cursor: pointer;"
+                    (click)="openDocument(doc.id)">
+                  <td>{{ (group.page - 1) * pageSize + i + 1 }}</td>
+                  <td><span class="doc-link">{{ doc.fileName }}</span></td>
+                  <td>{{ doc.stateName }} ({{ doc.state }})</td>
+                  <td>
+                    <span class="model-badge" [title]="doc.modelSource || ''">
+                      {{ shortModelName(doc.modelSource) }}
+                    </span>
+                  </td>
+                  <td>
+                    <span [class]="'status-badge status-' + doc.status">{{ doc.status }}</span>
+                  </td>
+                  <td>
+                    <span [class]="'badge ' + doc.confidenceCategory">
+                      {{ (doc.overallConfidence * 100).toFixed(1) }}%
+                    </span>
+                  </td>
+                  <td class="hide-tablet">{{ doc.totalSections }}</td>
+                  <td class="hide-tablet">{{ doc.totalFields }}</td>
+                  <td>{{ doc.parsedAt ? (doc.parsedAt | date:'short') : '-' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Mobile: Card view -->
+          <div class="mobile-cards">
+            <div *ngFor="let doc of getPageDocs(group); let i = index"
+                 class="doc-card-mobile"
+                 (click)="openDocument(doc.id)">
+              <div class="doc-card-header">
+                <span class="doc-card-title">{{ doc.fileName }}</span>
+                <span [class]="'badge ' + doc.confidenceCategory">
+                  {{ (doc.overallConfidence * 100).toFixed(1) }}%
+                </span>
+              </div>
+              <div class="doc-card-meta">
+                <span class="meta-item">{{ doc.stateName }} ({{ doc.state }})</span>
+                <span class="meta-item">
                   <span [class]="'status-badge status-' + doc.status">{{ doc.status }}</span>
-                </td>
-                <td>
-                  <span [class]="'badge ' + doc.confidenceCategory">
-                    {{ (doc.overallConfidence * 100).toFixed(1) }}%
-                  </span>
-                </td>
-                <td>{{ doc.totalSections }}</td>
-                <td>{{ doc.totalFields }}</td>
-                <td>{{ doc.parsedAt ? (doc.parsedAt | date:'short') : '-' }}</td>
-              </tr>
-            </tbody>
-          </table>
+                </span>
+                <span class="meta-item">
+                  <span class="meta-label">Fields:</span> {{ doc.totalFields }}
+                </span>
+                <span class="meta-item">
+                  <span class="meta-label">Model:</span>
+                  <span class="model-badge" [title]="doc.modelSource || ''">{{ shortModelName(doc.modelSource) }}</span>
+                </span>
+              </div>
+            </div>
+          </div>
 
           <!-- Pagination -->
           <div *ngIf="group.totalPages > 1" class="pagination">

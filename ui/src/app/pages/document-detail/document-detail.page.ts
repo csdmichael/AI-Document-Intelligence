@@ -13,7 +13,7 @@ import { environment } from '../../../environments/environment';
   standalone: true,
   imports: [CommonModule, RouterLink, FormsModule, IonSpinner, IonButton],
   template: `
-    <div style="padding: 1rem; max-width: 100%; margin: 0 auto;">
+    <div class="page-container" style="padding: 1rem; max-width: 100%; margin: 0 auto;">
       <div *ngIf="loading" style="text-align: center; padding: 3rem;">
         <ion-spinner name="crescent"></ion-spinner>
         <p>Loading document...</p>
@@ -25,14 +25,14 @@ import { environment } from '../../../environments/environment';
 
       <ng-container *ngIf="!loading && !error && doc">
         <!-- Header Bar -->
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
-          <div style="display: flex; align-items: center; gap: 1rem;">
+        <div class="detail-header">
+          <div class="detail-header-left">
             <a class="doc-link" routerLink="/" style="font-size: 0.9rem;">← Back</a>
-            <h2 style="margin: 0; font-size: 1.1rem; color: #004578;">{{ doc.fileName }}</h2>
-            <span style="color: #666; font-size: 0.85rem;">{{ doc.stateName }} ({{ doc.state }})</span>
+            <h2 class="detail-title">{{ doc.fileName }}</h2>
+            <span class="detail-state">{{ doc.stateName }} ({{ doc.state }})</span>
             <span [class]="'status-badge status-' + doc.status">{{ doc.status }}</span>
           </div>
-          <div style="display: flex; align-items: center; gap: 1rem;">
+          <div class="detail-header-right">
             <span [class]="'badge ' + doc.confidenceCategory" style="font-size: 0.95rem; padding: 0.25rem 0.8rem;">
               {{ doc.confidenceCategory }} {{ (doc.overallConfidence * 100).toFixed(1) }}%
             </span>
@@ -351,8 +351,93 @@ import { environment } from '../../../environments/environment';
 
     @media (max-width: 900px) {
       .split-pane { flex-direction: column; height: auto; }
-      .split-left { height: 400px; }
+      .split-left { height: 350px; }
       .field-row { grid-template-columns: 1fr; }
+      .field-correction { min-width: unset; justify-content: flex-start; }
+    }
+
+    /* --- Detail header responsive --- */
+    .detail-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .detail-header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .detail-title {
+      margin: 0;
+      font-size: 1.1rem;
+      color: #004578;
+    }
+    .detail-state {
+      color: #666;
+      font-size: 0.85rem;
+    }
+    .detail-header-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    /* --- MOBILE --- */
+    @media (max-width: 767px) {
+      .detail-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .detail-header-left {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      .detail-title {
+        font-size: 0.9rem;
+        width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .detail-header-right {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        width: 100%;
+      }
+      .split-pane { flex-direction: column; height: auto; }
+      .split-left { height: 280px; min-height: 280px; }
+      .split-right { max-height: none; }
+      .field-row {
+        grid-template-columns: 1fr !important;
+        gap: 0.25rem;
+        padding: 0.5rem;
+      }
+      .field-name { white-space: normal; }
+      .field-value-area { flex-wrap: wrap; }
+      .field-correction {
+        min-width: unset;
+        justify-content: flex-start;
+        width: 100%;
+      }
+      .edit-input { width: 100%; min-width: 0; }
+      .edit-inline { width: 100%; }
+      .section-header { padding: 0.5rem; gap: 0.3rem; }
+      .comparison-card { font-size: 0.75rem; padding: 0.5rem; }
+      .cmp-block { flex-wrap: wrap; }
+    }
+
+    /* --- TABLET --- */
+    @media (min-width: 768px) and (max-width: 1024px) {
+      .split-pane { gap: 0.5rem; height: calc(100vh - 200px); }
+      .split-left { flex: 0.8; }
+      .split-right { flex: 1.2; }
+      .field-row { grid-template-columns: 130px 1fr auto; font-size: 0.78rem; }
+      .field-correction { min-width: 110px; }
+      .detail-header-left { flex-wrap: wrap; gap: 0.5rem; }
+      .detail-title { font-size: 1rem; }
     }
   `],
 })
