@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { IonSpinner, IonButton } from '@ionic/angular/standalone';
+import { IonSpinner } from '@ionic/angular/standalone';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ApiService } from '../../api.service';
 import { DocumentDetail, Field, Section, CATEGORY_COLORS } from '../../models';
@@ -11,7 +11,7 @@ import { environment } from '../../../environments/environment';
 @Component({
   selector: 'app-document-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule, IonSpinner, IonButton],
+  imports: [CommonModule, RouterLink, FormsModule, IonSpinner],
   template: `
     <div class="page-container" style="padding: 1rem; max-width: 100%; margin: 0 auto;">
       <div *ngIf="loading" style="text-align: center; padding: 3rem;">
@@ -48,12 +48,11 @@ import { environment } from '../../../environments/environment';
               <span class="kpi-value">{{ correctedFieldCount }}</span>
               <span class="kpi-label">Corrected</span>
             </div>
-            <ion-button *ngIf="doc.status !== 'approved'"
-                        color="success" size="small"
-                        style="--background: #2e7d32; --color: #fff;"
-                        (click)="handleApprove()">
+            <button *ngIf="doc.status !== 'approved'"
+                    class="btn-approve"
+                    (click)="handleApprove()">
               ✓ Approve
-            </ion-button>
+            </button>
             <span *ngIf="doc.status === 'approved'" style="color: #2e7d32; font-weight: 600; font-size: 0.85rem;">
               ✓ Approved
             </span>
@@ -318,6 +317,17 @@ import { environment } from '../../../environments/environment';
     }
     .btn-edit { background: #0078d4; color: white; }
     .btn-edit:hover { background: #005a9e; }
+    .btn-approve {
+      background: #2e7d32;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 0.3rem 0.75rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-approve:hover { background: #1b5e20; }
     .btn-save { background: #2e7d32; color: white; }
     .btn-save:hover { background: #1b5e20; }
     .btn-cancel { background: #eee; color: #333; }
