@@ -36,6 +36,10 @@ import { environment } from '../../../environments/environment';
             <span [class]="'badge ' + doc.confidenceCategory" style="font-size: 0.95rem; padding: 0.25rem 0.8rem;">
               {{ doc.confidenceCategory }} {{ (doc.overallConfidence * 100).toFixed(1) }}%
             </span>
+            <!-- Model source badge -->
+            <span *ngIf="doc.modelSource" style="font-size: 0.72rem; background: #ede7f6; color: #4a148c; border-radius: 4px; padding: 0.15rem 0.5rem; font-family: monospace;" [title]="doc.modelSource">
+              {{ shortModel(doc.modelSource) }}
+            </span>
             <div class="kpi-mini">
               <span class="kpi-value">{{ doc.totalFields }}</span>
               <span class="kpi-label">Fields</span>
@@ -52,6 +56,52 @@ import { environment } from '../../../environments/environment';
             <span *ngIf="doc.status === 'approved'" style="color: #2e7d32; font-weight: 600; font-size: 0.85rem;">
               ✓ Approved
             </span>
+          </div>
+        </div>
+
+        <!-- Model Comparison Card (shown when --compare was used during parsing) -->
+        <div *ngIf="doc.modelComparison" class="comparison-card">
+          <div style="font-weight: 600; font-size: 0.85rem; color: #555; margin-bottom: 0.4rem;">
+            🔍 Model Comparison
+          </div>
+          <div style="display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: center;">
+            <!-- Primary model -->
+            <div class="cmp-block">
+              <div class="cmp-label">Primary Model</div>
+              <code class="cmp-model">{{ doc.modelSource || 'prebuilt-layout' }}</code>
+              <span [class]="'badge ' + doc.confidenceCategory" style="font-size: 0.78rem; margin-left: 0.5rem;">
+                {{ (doc.overallConfidence * 100).toFixed(1) }}%
+              </span>
+            </div>
+            <!-- vs divider -->
+            <div style="color: #aaa; font-size: 1.1rem;">↔</div>
+            <!-- Comparison model -->
+            <div class="cmp-block">
+              <div class="cmp-label">OCR / Read Model</div>
+              <code class="cmp-model">{{ doc.modelComparison.modelId }}</code>
+              <ng-container *ngIf="doc.modelComparison.overallConfidence !== null; else cmpError">
+                <span [class]="'badge ' + doc.modelComparison.confidenceCategory" style="font-size: 0.78rem; margin-left: 0.5rem;">
+                  {{ (doc.modelComparison.overallConfidence! * 100).toFixed(1) }}%
+                </span>
+                <span style="font-size: 0.74rem; color: #888; margin-left: 0.4rem;">
+                  ({{ doc.modelComparison.totalWords }} words)
+                </span>
+              </ng-container>
+              <ng-template #cmpError>
+                <span style="color: #c62828; font-size: 0.78rem; margin-left: 0.5rem;">
+                  ⚠ {{ doc.modelComparison.error }}
+                </span>
+              </ng-template>
+            </div>
+            <!-- Delta -->
+            <div *ngIf="doc.modelComparison.overallConfidence !== null" class="cmp-block">
+              <div class="cmp-label">Δ Confidence</div>
+              <span [style.color]="getDeltaColor(doc.overallConfidence - doc.modelComparison.overallConfidence!)"
+                    style="font-weight: 700; font-size: 0.9rem;">
+                {{ deltaSign(doc.overallConfidence - doc.modelComparison.overallConfidence!) }}
+                {{ (Math.abs(doc.overallConfidence - doc.modelComparison.overallConfidence!) * 100).toFixed(1) }}%
+              </span>
+            </div>
           </div>
         </div>
 
@@ -272,6 +322,33 @@ import { environment } from '../../../environments/environment';
     .btn-cancel { background: #eee; color: #333; }
     .btn-cancel:hover { background: #ddd; }
 
+    .comparison-card {
+      background: #f8f4ff;
+      border: 1px solid #ce93d8;
+      border-radius: 8px;
+      padding: 0.65rem 1rem;
+      margin-bottom: 0.75rem;
+      font-size: 0.82rem;
+    }
+    .cmp-block {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+    .cmp-label {
+      font-size: 0.72rem;
+      color: #888;
+      margin-right: 0.3rem;
+      white-space: nowrap;
+    }
+    .cmp-model {
+      font-size: 0.72rem;
+      background: #ede7f6;
+      color: #4a148c;
+      border-radius: 3px;
+      padding: 0.1rem 0.35rem;
+    }
+
     @media (max-width: 900px) {
       .split-pane { flex-direction: column; height: auto; }
       .split-left { height: 400px; }
@@ -289,6 +366,7 @@ export class DocumentDetailPage implements OnInit {
   editValue = '';
   saving = false;
   correctedFieldCount = 0;
+  Math = Math;
 
   private docId = '';
 
@@ -321,6 +399,22 @@ export class DocumentDetailPage implements OnInit {
 
   getCorrectedCount(section: Section): number {
     return section.fields.filter(f => f.correctedValue).length;
+  }
+
+  shortModel(modelSource: string | null): string {
+    if (!modelSource) return 'layout';
+    if (modelSource.startsWith('prebuilt-')) return modelSource.replace('prebuilt-', '');
+    return modelSource.length > 16 ? '…' + modelSource.slice(-12) : modelSource;
+  }
+
+  getDeltaColor(delta: number): string {
+    if (delta > 0.02) return '#2e7d32';
+    if (delta < -0.02) return '#c62828';
+    return '#888';
+  }
+
+  deltaSign(delta: number): string {
+    return delta >= 0 ? '+' : '-';
   }
 
   handleApprove(): void {

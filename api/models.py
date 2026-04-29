@@ -28,6 +28,15 @@ class SectionResponse(BaseModel):
     fields: list[FieldResponse]
 
 
+class ModelComparison(BaseModel):
+    """Result of running the OCR/read comparison model on the same document."""
+    modelId: str
+    overallConfidence: Optional[float] = None
+    confidenceCategory: Optional[str] = None
+    totalWords: Optional[int] = None
+    error: Optional[str] = None
+
+
 class DocumentSummary(BaseModel):
     id: str
     fileName: str
@@ -39,6 +48,7 @@ class DocumentSummary(BaseModel):
     totalSections: int
     totalFields: int
     parsedAt: Optional[str] = None
+    modelSource: Optional[str] = None
 
 
 class DocumentDetail(BaseModel):
@@ -51,6 +61,8 @@ class DocumentDetail(BaseModel):
     overallConfidence: float
     confidenceCategory: str
     confidenceLabel: Optional[str] = None
+    modelSource: Optional[str] = None
+    modelComparison: Optional[ModelComparison] = None
     sections: list[SectionResponse]
     totalSections: int
     totalFields: int
@@ -81,3 +93,19 @@ class RetrainingStatus(BaseModel):
     totalCorrections: int = 0
     readyForTraining: bool = False
     minimumRequired: int = 5
+
+
+class CustomModelStatus(BaseModel):
+    """Status of the custom extraction model."""
+    customModelId: str
+    isAvailable: bool
+    primaryModelId: str
+    comparisonModelId: str
+    minimumReviewedDocs: int
+    currentReviewedDocs: int
+    readyToTrain: bool
+
+
+class TrainRequest(BaseModel):
+    modelId: Optional[str] = None
+    buildMode: Optional[str] = "neural"

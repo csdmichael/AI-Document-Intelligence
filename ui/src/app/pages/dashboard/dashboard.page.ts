@@ -5,7 +5,7 @@ import { IonSpinner } from '@ionic/angular/standalone';
 import { forkJoin, catchError, of } from 'rxjs';
 import { ApiService } from '../../api.service';
 import {
-  DocumentSummary, ConfidenceStats, RetrainingStatus,
+  DocumentSummary, ConfidenceStats, RetrainingStatus, CustomModelStatus,
   CATEGORY_COLORS, CATEGORY_LABELS,
 } from '../../models';
 
@@ -51,6 +51,50 @@ interface DocGroup {
                (click)="filterByCategory('All')">
             <div class="count">{{ stats.total }}</div>
             <div class="label">Total Parsed</div>
+          </div>
+        </div>
+
+        <!-- Custom Model Status Panel -->
+        <div *ngIf="customModel" class="card" style="margin-bottom: 1rem; border-left: 4px solid #7b1fa2;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+            <div>
+              <h3 style="margin: 0 0 0.25rem; color: #7b1fa2; font-size: 0.95rem;">🤖 Custom Extraction Model</h3>
+              <div style="font-size: 0.82rem; color: #555;">
+                <span *ngIf="customModel.isAvailable" style="color: #2e7d32; font-weight: 600;">
+                  ✓ Active — {{ customModel.customModelId }}
+                </span>
+                <span *ngIf="!customModel.isAvailable && customModel.customModelId" style="color: #e65100;">
+                  ⚠ Configured but not found — {{ customModel.customModelId }}
+                </span>
+                <span *ngIf="!customModel.customModelId" style="color: #999;">
+                  Not trained yet — using <strong>{{ customModel.primaryModelId }}</strong>
+                </span>
+              </div>
+              <div style="font-size: 0.78rem; color: #888; margin-top: 0.2rem;">
+                Compare model: <code>{{ customModel.comparisonModelId }}</code>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+              <div class="kpi-mini">
+                <span class="kpi-value">{{ customModel.currentReviewedDocs }}</span>
+                <span class="kpi-label">Reviewed docs</span>
+              </div>
+              <div class="kpi-mini">
+                <span class="kpi-value">{{ customModel.minimumReviewedDocs }}</span>
+                <span class="kpi-label">Required to train</span>
+              </div>
+              <div *ngIf="customModel.readyToTrain" style="font-size: 0.8rem; background: #e8f5e9; color: #2e7d32; padding: 0.3rem 0.75rem; border-radius: 12px; font-weight: 600;">
+                Ready to train
+              </div>
+              <div *ngIf="!customModel.readyToTrain" style="font-size: 0.78rem; color: #999;">
+                {{ customModel.minimumReviewedDocs - customModel.currentReviewedDocs }} more reviews needed
+              </div>
+            </div>
+          </div>
+          <div *ngIf="customModel.readyToTrain" style="margin-top: 0.6rem; font-size: 0.8rem; color: #555; background: #f3e5f5; padding: 0.5rem 0.75rem; border-radius: 6px;">
+            💡 Run <code>python -m scripts.train_custom_model</code> to train, then set
+            <code>DOC_INTELLIGENCE_CUSTOM_MODEL_ID</code>.
+            Use <code>python -m scripts.parse_documents --model &lt;id&gt; --compare</code> to compare results.
           </div>
         </div>
 
@@ -112,7 +156,7 @@ interface DocGroup {
           <table>
             <thead>
               <tr>
-                <th>#</th><th>File Name</th><th>State</th><th>Status</th>
+                <th>#</th><th>File Name</th><th>State</th><th>Model</th><th>Status</th>
                 <th>Confidence</th><th>Sections</th><th>Fields</th><th>Parsed</th>
               </tr>
             </thead>
@@ -123,6 +167,11 @@ interface DocGroup {
                 <td>{{ (group.page - 1) * pageSize + i + 1 }}</td>
                 <td><span class="doc-link">{{ doc.fileName }}</span></td>
                 <td>{{ doc.stateName }} ({{ doc.state }})</td>
+                <td>
+                  <span class="model-badge" [title]="doc.modelSource || ''">
+                    {{ shortModelName(doc.modelSource) }}
+                  </span>
+                </td>
                 <td>
                   <span [class]="'status-badge status-' + doc.status">{{ doc.status }}</span>
                 </td>
@@ -157,11 +206,28 @@ interface DocGroup {
       </ng-container>
     </div>
   `,
+  styles: [`
+    .model-badge {
+      font-size: 0.7rem;
+      background: #ede7f6;
+      color: #4a148c;
+      border-radius: 4px;
+      padding: 0.1rem 0.4rem;
+      font-family: monospace;
+      white-space: nowrap;
+      overflow: hidden;
+      max-width: 110px;
+      display: inline-block;
+      text-overflow: ellipsis;
+      vertical-align: middle;
+    }
+  `],
 })
 export class DashboardPage implements OnInit {
   allDocs: DocumentSummary[] = [];
   stats: ConfidenceStats | null = null;
   retraining: RetrainingStatus | null = null;
+  customModel: CustomModelStatus | null = null;
   groupedDocs: DocGroup[] = [];
   loading = true;
   error = '';
@@ -196,6 +262,13 @@ export class DashboardPage implements OnInit {
   setStateFilter(state: string): void {
     this.stateFilter = state;
     this.applyFilters();
+  }
+
+  shortModelName(modelSource: string | null): string {
+    if (!modelSource) return 'layout';
+    if (modelSource.startsWith('prebuilt-')) return modelSource.replace('prebuilt-', '');
+    // Custom model IDs can be long; truncate to last 12 chars with prefix
+    return modelSource.length > 16 ? '…' + modelSource.slice(-12) : modelSource;
   }
 
   getPageDocs(group: DocGroup): DocumentSummary[] {
@@ -268,11 +341,13 @@ export class DashboardPage implements OnInit {
       this.api.getDocuments(),
       this.api.getConfidenceStats().pipe(catchError(() => of({ blue: 0, green: 0, yellow: 0, red: 0, total: 0 } as ConfidenceStats))),
       this.api.getRetrainingStats().pipe(catchError(() => of(null))),
+      this.api.getCustomModelStatus().pipe(catchError(() => of(null))),
     ]).subscribe({
-      next: ([docs, stats, retraining]) => {
+      next: ([docs, stats, retraining, customModel]) => {
         this.allDocs = docs;
         this.stats = stats;
         this.retraining = retraining;
+        this.customModel = customModel;
         this.states = [...new Set(docs.map(d => d.state))].sort();
         this.applyFilters();
         this.loading = false;

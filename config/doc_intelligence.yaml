@@ -2,9 +2,17 @@
 # Model selection, confidence thresholds, and processing settings.
 
 model:
-  # Use prebuilt-layout for general form extraction (key-value pairs, tables, text).
-  # Switch to a custom model ID after training for higher accuracy.
+  # Primary model used for parsing.
+  # Use "prebuilt-layout" before a custom model is trained.
+  # After running scripts/train_custom_model.py, set custom_model_id and
+  # change model_id to match, or set env var DOC_INTELLIGENCE_MODEL_ID.
   model_id: "prebuilt-layout"
+  # Set this to the trained custom model ID after running scripts/train_custom_model.py.
+  # Env var DOC_INTELLIGENCE_CUSTOM_MODEL_ID also accepted.
+  custom_model_id: ""
+  # Comparison (OCR-only) model used when --compare flag is passed to
+  # scripts/parse_documents.py.  "prebuilt-read" returns raw text + word confidences.
+  comparison_model_id: "prebuilt-read"
   # API version for the Document Intelligence SDK
   api_version: "2024-11-30"
 
@@ -92,3 +100,7 @@ retraining:
   min_samples_per_type: 5
   # Target labeled samples for production accuracy
   target_samples_per_type: 50
+  # Blob container used to store labeled training data
+  training_container: "doc-intelligence-training"
+  # Blob prefix within the training container
+  training_prefix: "training/"
