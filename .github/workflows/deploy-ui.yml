@@ -22,11 +22,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
 
       - name: Install and build UI
         working-directory: ui
         run: |
-          npm install
+          npm ci
           npm run build
           cp server.js dist/server.js
           cp -n package.json dist/package.json 2>/dev/null || true
