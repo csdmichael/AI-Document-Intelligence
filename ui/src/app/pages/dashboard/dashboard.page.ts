@@ -1,18 +1,30 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { IonSpinner } from '@ionic/angular/standalone';
 import { forkJoin, catchError, of } from 'rxjs';
 import { ApiService } from '../../api.service';
 import {
-  DocumentSummary, ConfidenceStats, BlobFile, RetrainingStatus,
+  DocumentSummary, ConfidenceStats, RetrainingStatus,
   CATEGORY_COLORS, CATEGORY_LABELS,
 } from '../../models';
+
+const PAGE_SIZE = 10;
+
+interface DocGroup {
+  category: string;
+  docs: DocumentSummary[];
+  avgConfidence: number;
+  totalFields: number;
+  reviewedCount: number;
+  page: number;
+  totalPages: number;
+}
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink, IonSpinner],
+  imports: [CommonModule, IonSpinner],
   template: `
     <div style="padding: 1.5rem; max-width: 1400px; margin: 0 auto;">
       <div *ngIf="loading" style="text-align: center; padding: 3rem;">
@@ -63,42 +75,9 @@ import {
           </div>
         </div>
 
-        <!-- Blob Files Section -->
-        <div class="card" *ngIf="showBlobs">
-          <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" (click)="showBlobs = !showBlobs">
-            <h2>📁 Blob Storage Files ({{ blobs.length }})</h2>
-            <span style="color: #888; font-size: 0.8rem;">▲ Collapse</span>
-          </div>
-          <p style="margin-bottom: 0.75rem; color: #666; font-size: 0.85rem;">
-            Raw tax exemption PDFs in <code>tax-forms</code> container.
-          </p>
-          <div style="max-height: 300px; overflow-y: auto;">
-            <table>
-              <thead>
-                <tr><th>#</th><th>File Name</th><th>Size</th><th>Last Modified</th><th>Parsed?</th></tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let b of blobs; let i = index">
-                  <td>{{ i + 1 }}</td>
-                  <td>{{ b.name }}</td>
-                  <td>{{ (b.size / 1024).toFixed(1) }} KB</td>
-                  <td>{{ b.lastModified ? (b.lastModified | date:'medium') : '-' }}</td>
-                  <td>
-                    <span *ngIf="isParsed(b.name)" class="badge Green">✓ Parsed</span>
-                    <span *ngIf="!isParsed(b.name)" class="badge" style="background: #999;">Pending</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div class="card collapsed-bar" *ngIf="!showBlobs" (click)="showBlobs = true">
-          <h2 style="margin: 0;">📁 Blob Storage Files ({{ blobs.length }}) <span style="color: #888; font-size: 0.8rem; font-weight: normal;">▼ Expand</span></h2>
-        </div>
-
         <!-- Documents Grouped by Confidence Category -->
-        <div *ngFor="let group of groupedDocs" class="card" style="border-left: 4px solid {{ getCatColor(group.category) }};">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+        <div *ngFor="let group of groupedDocs" class="card" [style.border-left]="'4px solid ' + getCatColor(group.category)">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
             <h2 style="margin: 0;">
               <span [class]="'badge ' + group.category" style="font-size: 0.85rem; padding: 0.25rem 0.75rem;">
                 {{ group.category }}
@@ -129,9 +108,11 @@ import {
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let doc of group.docs; let i = index">
-                <td>{{ i + 1 }}</td>
-                <td><a class="doc-link" [routerLink]="['/documents', doc.id]">{{ doc.fileName }}</a></td>
+              <tr *ngFor="let doc of getPageDocs(group); let i = index"
+                  style="cursor: pointer;"
+                  (click)="openDocument(doc.id)">
+                <td>{{ (group.page - 1) * pageSize + i + 1 }}</td>
+                <td><span class="doc-link">{{ doc.fileName }}</span></td>
                 <td>{{ doc.stateName }} ({{ doc.state }})</td>
                 <td>
                   <span [class]="'status-badge status-' + doc.status">{{ doc.status }}</span>
@@ -147,6 +128,18 @@ import {
               </tr>
             </tbody>
           </table>
+
+          <!-- Pagination -->
+          <div *ngIf="group.totalPages > 1" class="pagination">
+            <button class="page-btn" [disabled]="group.page <= 1" (click)="setPage(group, group.page - 1)">‹ Prev</button>
+            <ng-container *ngFor="let p of getPageNumbers(group)">
+              <button class="page-btn" [class.active]="p === group.page" (click)="setPage(group, p)">{{ p }}</button>
+            </ng-container>
+            <button class="page-btn" [disabled]="group.page >= group.totalPages" (click)="setPage(group, group.page + 1)">Next ›</button>
+            <span style="color: #888; font-size: 0.75rem; margin-left: 0.5rem;">
+              {{ (group.page - 1) * pageSize + 1 }}–{{ min(group.page * pageSize, group.docs.length) }} of {{ group.docs.length }}
+            </span>
+          </div>
         </div>
 
         <div *ngIf="groupedDocs.length === 0 && !loading" class="card" style="text-align: center; color: #999; padding: 2rem;">
@@ -157,25 +150,26 @@ import {
   `,
 })
 export class DashboardPage implements OnInit {
-  blobs: BlobFile[] = [];
   allDocs: DocumentSummary[] = [];
   stats: ConfidenceStats | null = null;
   retraining: RetrainingStatus | null = null;
-  groupedDocs: { category: string; docs: DocumentSummary[]; avgConfidence: number; totalFields: number; reviewedCount: number }[] = [];
+  groupedDocs: DocGroup[] = [];
   loading = true;
   error = '';
-  showBlobs = false;
   categoryFilter = 'All';
   reviewFilter: 'all' | 'reviewed' | 'not-reviewed' = 'all';
   categoryLabels = CATEGORY_LABELS;
   statKeys: ('blue' | 'green' | 'yellow' | 'red')[] = ['blue', 'green', 'yellow', 'red'];
+  pageSize = PAGE_SIZE;
 
-  private parsedFileNames = new Set<string>();
-
-  constructor(private api: ApiService) {}
+  constructor(private api: ApiService, private router: Router) {}
 
   ngOnInit(): void {
     this.loadData();
+  }
+
+  openDocument(id: string): void {
+    this.router.navigate(['/documents', id]);
   }
 
   filterByCategory(cat: string): void {
@@ -186,6 +180,33 @@ export class DashboardPage implements OnInit {
   setReviewFilter(f: 'all' | 'reviewed' | 'not-reviewed'): void {
     this.reviewFilter = f;
     this.applyFilters();
+  }
+
+  getPageDocs(group: DocGroup): DocumentSummary[] {
+    const start = (group.page - 1) * PAGE_SIZE;
+    return group.docs.slice(start, start + PAGE_SIZE);
+  }
+
+  getPageNumbers(group: DocGroup): number[] {
+    const pages: number[] = [];
+    const total = group.totalPages;
+    const current = group.page;
+    const start = Math.max(1, current - 2);
+    const end = Math.min(total, current + 2);
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    return pages;
+  }
+
+  setPage(group: DocGroup, page: number): void {
+    if (page >= 1 && page <= group.totalPages) {
+      group.page = page;
+    }
+  }
+
+  min(a: number, b: number): number {
+    return Math.min(a, b);
   }
 
   capitalize(s: string): string {
@@ -209,10 +230,6 @@ export class DashboardPage implements OnInit {
     return (this.stats as unknown as Record<string, number>)[key] ?? 0;
   }
 
-  isParsed(blobName: string): boolean {
-    return this.parsedFileNames.has(blobName);
-  }
-
   exportTraining(): void {
     this.api.exportTrainingData().subscribe({
       next: (data) => {
@@ -232,17 +249,14 @@ export class DashboardPage implements OnInit {
   private loadData(): void {
     this.loading = true;
     forkJoin([
-      this.api.getBlobs(),
       this.api.getDocuments(),
       this.api.getConfidenceStats().pipe(catchError(() => of({ blue: 0, green: 0, yellow: 0, red: 0, total: 0 } as ConfidenceStats))),
       this.api.getRetrainingStats().pipe(catchError(() => of(null))),
     ]).subscribe({
-      next: ([blobs, docs, stats, retraining]) => {
-        this.blobs = blobs;
+      next: ([docs, stats, retraining]) => {
         this.allDocs = docs;
         this.stats = stats;
         this.retraining = retraining;
-        this.parsedFileNames = new Set(docs.map(d => d.fileName));
         this.applyFilters();
         this.loading = false;
       },
@@ -280,6 +294,8 @@ export class DashboardPage implements OnInit {
       avgConfidence: docs.reduce((sum, d) => sum + d.overallConfidence, 0) / docs.length,
       totalFields: docs.reduce((sum, d) => sum + d.totalFields, 0),
       reviewedCount: docs.filter(d => d.status === 'reviewed' || d.status === 'approved').length,
+      page: 1,
+      totalPages: Math.ceil(docs.length / PAGE_SIZE),
     }));
   }
 }

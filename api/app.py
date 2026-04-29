@@ -150,19 +150,35 @@ def list_documents(
     query += " ORDER BY c.overallConfidence ASC"
 
     items = list(container.query_items(query=query, parameters=params or None, enable_cross_partition_query=True))
-    return items
+
+    # Deduplicate: keep only the latest parsed record per fileName
+    latest = {}
+    for item in items:
+        fn = item.get("fileName", "")
+        existing = latest.get(fn)
+        if not existing or (item.get("parsedAt") or "") > (existing.get("parsedAt") or ""):
+            latest[fn] = item
+    return list(latest.values())
 
 
 @app.get("/api/documents/stats", response_model=ConfidenceStats)
 def get_confidence_stats():
-    """Get document count per confidence category."""
+    """Get document count per confidence category (deduplicated by fileName)."""
     container = get_cosmos_container()
-    query = "SELECT VALUE c.confidenceCategory FROM c"
-    categories = list(container.query_items(query=query, enable_cross_partition_query=True))
+    query = "SELECT c.fileName, c.confidenceCategory, c.parsedAt FROM c"
+    items = list(container.query_items(query=query, enable_cross_partition_query=True))
+
+    # Deduplicate: keep only the latest per fileName
+    latest = {}
+    for item in items:
+        fn = item.get("fileName", "")
+        existing = latest.get(fn)
+        if not existing or (item.get("parsedAt") or "") > (existing.get("parsedAt") or ""):
+            latest[fn] = item
 
     stats = ConfidenceStats()
-    for cat in categories:
-        cat_lower = (cat or "").lower()
+    for item in latest.values():
+        cat_lower = (item.get("confidenceCategory") or "").lower()
         if cat_lower == "blue":
             stats.blue += 1
         elif cat_lower == "green":

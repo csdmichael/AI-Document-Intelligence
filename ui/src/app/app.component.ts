@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import {
   IonApp,
   IonSplitPane,
@@ -14,7 +14,6 @@ import {
   IonLabel,
   IonMenuButton,
   IonButtons,
-  IonRouterOutlet,
   IonFooter,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
@@ -39,7 +38,7 @@ import { gridOutline, documentTextOutline, informationCircleOutline } from 'ioni
     IonLabel,
     IonMenuButton,
     IonButtons,
-    IonRouterOutlet,
+    RouterOutlet,
     IonFooter,
   ],
   template: `
@@ -81,7 +80,7 @@ import { gridOutline, documentTextOutline, informationCircleOutline } from 'ioni
           </ion-header>
 
           <ion-content>
-            <ion-router-outlet></ion-router-outlet>
+            <router-outlet></router-outlet>
           </ion-content>
 
           <ion-footer>
