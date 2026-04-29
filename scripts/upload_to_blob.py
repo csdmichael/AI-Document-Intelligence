@@ -39,22 +39,29 @@ def ensure_container(client: BlobServiceClient):
 
 
 def upload_pdfs(client: BlobServiceClient):
-    """Upload all PDF files from data/ to the blob container."""
+    """Upload all PDF files from data/ and subdirectories to the blob container."""
     container_client = client.get_container_client(CONTAINER_NAME)
-    pdf_files = sorted(f for f in os.listdir(DATA_DIR) if f.lower().endswith(".pdf"))
 
-    if not pdf_files:
+    # Collect PDFs from data/ and all subdirectories
+    pdf_entries = []  # list of (filepath, blob_name)
+    for root, _dirs, files in os.walk(DATA_DIR):
+        for f in sorted(files):
+            if f.lower().endswith(".pdf"):
+                filepath = os.path.join(root, f)
+                # Use the filename only (flat blob namespace)
+                pdf_entries.append((filepath, f))
+
+    if not pdf_entries:
         print(f"No PDF files found in {DATA_DIR}. Run generate_forms.py first.")
         sys.exit(1)
 
-    print(f"Uploading {len(pdf_files)} PDF files to container '{CONTAINER_NAME}'...")
+    print(f"Uploading {len(pdf_entries)} PDF files to container '{CONTAINER_NAME}'...")
 
     content_settings = ContentSettings(content_type="application/pdf")
     uploaded = 0
 
-    for filename in pdf_files:
-        filepath = os.path.join(DATA_DIR, filename)
-        blob_client = container_client.get_blob_client(filename)
+    for filepath, blob_name in pdf_entries:
+        blob_client = container_client.get_blob_client(blob_name)
 
         with open(filepath, "rb") as f:
             blob_client.upload_blob(
@@ -64,7 +71,7 @@ def upload_pdfs(client: BlobServiceClient):
             )
         uploaded += 1
         if uploaded % 10 == 0:
-            print(f"  Uploaded {uploaded}/{len(pdf_files)}...")
+            print(f"  Uploaded {uploaded}/{len(pdf_entries)}...")
 
     print(f"\nDone! Uploaded {uploaded} files to "
           f"{BLOB_URL}/{CONTAINER_NAME}/")
