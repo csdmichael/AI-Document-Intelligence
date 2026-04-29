@@ -28,3 +28,11 @@ subscription:
   id: "86b37969-9445-49cf-b03f-d8866235171c"
   resource_group: "ai-myaacoub"
   location: "eastus"
+
+app_service:
+  plan_name: "plan-taxforms"
+  plan_resource_id: "/subscriptions/86b37969-9445-49cf-b03f-d8866235171c/resourceGroups/ai-myaacoub/providers/Microsoft.Web/serverFarms/plan-taxforms"
+  api_name: "api-taxforms"
+  api_url: "https://api-taxforms.azurewebsites.net"
+  ui_name: "ui-taxforms"
+  ui_url: "https://ui-taxforms.azurewebsites.net"

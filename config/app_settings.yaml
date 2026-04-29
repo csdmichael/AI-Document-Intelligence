@@ -5,12 +5,14 @@ api:
   host: "0.0.0.0"
   port: 8000
   cors_origins:
-    - "*"
+    - "https://ui-taxforms.azurewebsites.net"
+    - "http://localhost:3000"
   log_level: "info"
 
 ui:
   dev_port: 3000
   api_proxy: "http://localhost:8000"
+  app_service_name: "ui-taxforms"
 
 forms:
   # Number of tax exemption PDFs to generate (2 per state = 100)

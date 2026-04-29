@@ -20,3 +20,4 @@ COSMOS_CONTAINER = cfg.azure.cosmos_db.container
 
 API_HOST = cfg.app.api.host
 API_PORT = cfg.app.api.port
+CORS_ORIGINS = cfg.app.api.cors_origins

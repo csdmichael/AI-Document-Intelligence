@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // Bicep template for AI Document Intelligence Tax Form Processing solution
-// Provisions: AI Search, App Service (API), Static Web App (UI),
-//             RBAC role assignments for managed identity.
+// Provisions: AI Search, App Service (API + UI), RBAC role assignments
+//             for managed identity.
 // Existing resources (Blob Storage, AI Services, VNet, Cosmos DB) are
 // referenced only — not re-created.
 // ---------------------------------------------------------------------------
@@ -85,6 +85,12 @@ resource apiApp 'Microsoft.Web/sites@2023-12-01' = {
     siteConfig: {
       linuxFxVersion: 'PYTHON|3.12'
       appCommandLine: 'uvicorn api.app:app --host 0.0.0.0 --port 8000'
+      cors: {
+        allowedOrigins: [
+          'https://ui-${nameSuffix}.azurewebsites.net'
+        ]
+        supportCredentials: true
+      }
       appSettings: [
         { name: 'AZURE_STORAGE_ACCOUNT_NAME', value: storageAccountName }
         { name: 'AZURE_STORAGE_CONTAINER_NAME', value: 'tax-forms' }
@@ -100,16 +106,23 @@ resource apiApp 'Microsoft.Web/sites@2023-12-01' = {
 }
 
 // ---------------------------------------------------------------------------
-// Static Web App (UI)
+// UI Web App (App Service — same plan as API)
 // ---------------------------------------------------------------------------
-resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
+resource uiApp 'Microsoft.Web/sites@2023-12-01' = {
   name: 'ui-${nameSuffix}'
   location: location
-  sku: {
-    name: 'Free'
-    tier: 'Free'
+  kind: 'app,linux'
+  properties: {
+    serverFarmId: appPlan.id
+    siteConfig: {
+      linuxFxVersion: 'NODE|20-lts'
+      appCommandLine: 'pm2 serve /home/site/wwwroot --no-daemon --spa'
+      appSettings: [
+        { name: 'SCM_DO_BUILD_DURING_DEPLOYMENT', value: 'false' }
+      ]
+    }
+    httpsOnly: true
   }
-  properties: {}
 }
 
 // ---------------------------------------------------------------------------
@@ -173,5 +186,5 @@ resource searchRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-0
 output cosmosEndpoint string = cosmosAccount.properties.documentEndpoint
 output apiUrl string = 'https://${apiApp.properties.defaultHostName}'
 output searchServiceName string = searchService.name
-output staticWebAppUrl string = staticWebApp.properties.defaultHostname
+output staticWebAppUrl string = uiApp.properties.defaultHostName
 output apiPrincipalId string = apiApp.identity.principalId

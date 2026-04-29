@@ -10,7 +10,7 @@ Built for **Garmin International, Inc.** as the purchaser entity.
 
 | Resource | URL |
 |----------|-----|
-| **UI Portal** | [https://white-ground-036f98b1e.7.azurestaticapps.net](https://white-ground-036f98b1e.7.azurestaticapps.net) |
+| **UI Portal** | [https://ui-taxforms.azurewebsites.net](https://ui-taxforms.azurewebsites.net) |
 | **API Backend** | [https://api-taxforms.azurewebsites.net](https://api-taxforms.azurewebsites.net) |
 | **Swagger API Docs** | [https://api-taxforms.azurewebsites.net/docs](https://api-taxforms.azurewebsites.net/docs) |
 | **ReDoc API Docs** | [https://api-taxforms.azurewebsites.net/redoc](https://api-taxforms.azurewebsites.net/redoc) |
@@ -32,7 +32,7 @@ Built for **Garmin International, Inc.** as the purchaser entity.
 | Results DB | Cosmos DB (`cosmos-ai-poc`) | Store parsed results + human corrections |
 | Search | Azure AI Search | Full-text search across parsed documents |
 | API | App Service (Python) | FastAPI backend with CRUD operations |
-| UI | Static Web App | Angular Ionic review portal with drill-down |
+| UI | App Service (Node.js) | Angular Ionic review portal |
 | Security | Private VNet + Managed Identity | Zero-trust network + keyless auth |
 | AI Agent | AI Foundry (`001-ai-proj`) | Orchestration and intelligent processing |
 
@@ -227,7 +227,7 @@ AI-Document-Intelligence/
 │   ├── architecture.md         # Mermaid architecture diagram source
 │   └── Prompts.txt             # Original requirements
 ├── infra/
-│   └── main.bicep              # Azure infrastructure (Search, App Service, RBAC)
+│   └── main.bicep              # Azure infrastructure (Search, App Service API+UI, RBAC)
 ├── scripts/
 │   ├── generate_forms.py       # Generate 100 handwritten-style tax PDFs
 │   ├── upload_to_blob.py       # Upload PDFs to Azure Blob Storage
@@ -366,7 +366,7 @@ Corrections are stored in Cosmos DB alongside the original extracted values, mai
 The workflow files at `.github/workflows/` provide three separate pipelines:
 
 ### `deploy.yml` — Doc Intelligence Solution (Infra + Data Pipeline)
-1. **Provision** — Deploy Bicep infrastructure (Cosmos DB, AI Search, App Service)
+1. **Provision** — Deploy Bicep infrastructure (Cosmos DB, AI Search, App Service API+UI)
 2. **Generate** — Create 100 tax exemption PDFs
 3. **Upload** — Push PDFs to Azure Blob Storage
 4. **Parse** — Run AI Document Intelligence on all documents
@@ -376,7 +376,7 @@ The workflow files at `.github/workflows/` provide three separate pipelines:
 - Deploy FastAPI backend to Azure App Service
 
 ### `deploy-ui.yml` — UI Frontend
-- Build Angular Ionic app and deploy to Static Web Apps
+- Build Angular Ionic app and deploy to App Service
 
 > **Note**: All workflows are triggered manually via `workflow_dispatch` only. No automatic triggers on push or pull request.
 
@@ -387,7 +387,6 @@ The workflow files at `.github/workflows/` provide three separate pipelines:
 | `AZURE_CLIENT_ID` | Service principal or federated identity client ID |
 | `AZURE_TENANT_ID` | Azure AD tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | `86b37969-9445-49cf-b03f-d8866235171c` |
-| `AZURE_STATIC_WEB_APPS_API_TOKEN` | Deployment token for Static Web App |
 
 ### Setting up OIDC for GitHub Actions
 

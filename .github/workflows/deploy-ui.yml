@@ -5,6 +5,7 @@ on:
 
 env:
   NODE_VERSION: "20"
+  AZURE_WEBAPP_NAME: "ui-taxforms"
 
 permissions:
   id-token: write
@@ -35,12 +36,8 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Deploy to Static Web App
-        uses: azure/static-web-apps-deploy@v1
+      - name: Deploy to App Service
+        uses: azure/webapps-deploy@v3
         with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
-          action: upload
-          app_location: ui/dist
-          output_location: ""
-          skip_app_build: true
-          skip_api_build: true
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          package: ui/dist

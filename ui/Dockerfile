@@ -9,11 +9,11 @@ FROM nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY <<EOF /etc/nginx/conf.d/default.conf
 server {
-    listen 80;
+    listen 8080;
     location / {
         root /usr/share/nginx/html;
         try_files \$uri /index.html;
     }
 }
 EOF
-EXPOSE 80
+EXPOSE 8080

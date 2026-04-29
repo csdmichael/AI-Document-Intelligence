@@ -15,7 +15,7 @@ from typing import Optional
 from api.config import (
     BLOB_URL, STORAGE_CONTAINER_NAME, COSMOS_ENDPOINT,
     COSMOS_DATABASE, COSMOS_CONTAINER, API_HOST, API_PORT,
-    DOCUMENT_INTELLIGENCE_ENDPOINT,
+    DOCUMENT_INTELLIGENCE_ENDPOINT, CORS_ORIGINS,
 )
 from api.models import (
     FieldUpdate, DocumentSummary, DocumentDetail,
@@ -31,7 +31,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
