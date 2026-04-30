@@ -83,7 +83,7 @@ import { gridOutline, documentTextOutline, informationCircleOutline, cloudOutlin
             </ion-toolbar>
           </ion-header>
 
-          <ion-content>
+          <ion-content [fullscreen]="false" style="--padding-top: 0.5rem;">
             <router-outlet></router-outlet>
           </ion-content>
 

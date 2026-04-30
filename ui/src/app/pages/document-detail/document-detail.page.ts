@@ -13,7 +13,7 @@ import { environment } from '../../../environments/environment';
   standalone: true,
   imports: [CommonModule, RouterLink, FormsModule, IonSpinner],
   template: `
-    <div class="page-container" style="padding: 1rem; max-width: 100%; margin: 0 auto;">
+    <div class="page-container" style="padding: 1.5rem 1rem 3rem; max-width: 100%; margin: 0 auto;">
       <div *ngIf="loading" style="text-align: center; padding: 3rem;">
         <ion-spinner name="crescent"></ion-spinner>
         <p>Loading document...</p>
