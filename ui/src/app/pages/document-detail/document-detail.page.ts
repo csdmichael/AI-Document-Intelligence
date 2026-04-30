@@ -31,6 +31,9 @@ import { environment } from '../../../environments/environment';
             <h2 class="detail-title">{{ doc.fileName }}</h2>
             <span class="detail-state">{{ doc.stateName }} ({{ doc.state }})</span>
             <span [class]="'status-badge status-' + doc.status">{{ doc.status }}</span>
+            <span class="doc-type-badge" [class.pptx]="doc.documentType === 'pptx'" style="font-size: 0.72rem;">
+              {{ doc.documentType === 'pptx' ? '📊 PPTX' : '📄 PDF' }}
+            </span>
           </div>
           <div class="detail-header-right">
             <span [class]="'badge ' + doc.confidenceCategory" style="font-size: 0.95rem; padding: 0.25rem 0.8rem;">
@@ -105,14 +108,24 @@ import { environment } from '../../../environments/environment';
           </div>
         </div>
 
-        <!-- Split Pane: PDF Left | Fields Right -->
+        <!-- Split Pane: Document Left | Fields Right -->
         <div class="split-pane">
-          <!-- Left: PDF Viewer -->
+          <!-- Left: Document Viewer -->
           <div class="split-left">
             <div class="pdf-container">
-              <iframe *ngIf="pdfUrl" [src]="pdfUrl" class="pdf-frame"></iframe>
-              <div *ngIf="!pdfUrl" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999;">
-                <p>PDF preview not available</p>
+              <!-- PDF inline viewer -->
+              <iframe *ngIf="pdfUrl && doc.documentType !== 'pptx'" [src]="pdfUrl" class="pdf-frame"></iframe>
+              <!-- PPTX download prompt -->
+              <div *ngIf="doc.documentType === 'pptx'" class="pptx-preview">
+                <div class="pptx-icon">📊</div>
+                <p class="pptx-title">{{ doc.fileName }}</p>
+                <p class="pptx-subtitle">PowerPoint presentations cannot be previewed inline.</p>
+                <a *ngIf="rawBlobUrl" [href]="rawBlobUrl" download class="btn-download">
+                  ⬇ Download Presentation
+                </a>
+              </div>
+              <div *ngIf="!pdfUrl && doc.documentType !== 'pptx'" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999;">
+                <p>Document preview not available</p>
               </div>
             </div>
           </div>
@@ -182,6 +195,22 @@ import { environment } from '../../../environments/environment';
                         <button class="btn-cancel btn-sm" (click)="cancelEdit()">✗</button>
                       </div>
                     </ng-container>
+                  </div>
+                </div>
+
+                <!-- Images & Diagrams sub-section -->
+                <div *ngIf="section.imageDescriptions && section.imageDescriptions.length > 0" class="image-descriptions-panel">
+                  <div class="image-descriptions-header">
+                    🖼 Images &amp; Diagrams ({{ section.imageDescriptions.length }})
+                  </div>
+                  <div *ngFor="let img of section.imageDescriptions" class="image-desc-card">
+                    <div class="image-desc-top">
+                      <span class="image-desc-name">{{ img.figureName }}</span>
+                      <span [class]="'badge ' + img.confidenceCategory" style="font-size: 0.68rem;">
+                        {{ (img.confidence * 100).toFixed(1) }}%
+                      </span>
+                    </div>
+                    <p class="image-desc-text">{{ img.description }}</p>
                   </div>
                 </div>
               </div>
@@ -360,11 +389,87 @@ import { environment } from '../../../environments/environment';
       padding: 0.1rem 0.35rem;
     }
 
+    .doc-type-badge {
+      font-size: 0.7rem;
+      background: #e3f2fd;
+      color: #1565c0;
+      border-radius: 4px;
+      padding: 0.1rem 0.4rem;
+      white-space: nowrap;
+    }
+    .doc-type-badge.pptx {
+      background: #fce4ec;
+      color: #880e4f;
+    }
+
     @media (max-width: 900px) {
       .split-pane { flex-direction: column; height: auto; }
       .split-left { height: 350px; }
       .field-row { grid-template-columns: 1fr; }
       .field-correction { min-width: unset; justify-content: flex-start; }
+    }
+
+    .pptx-preview {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 2rem;
+      text-align: center;
+      gap: 0.75rem;
+    }
+    .pptx-icon { font-size: 3rem; }
+    .pptx-title { font-size: 0.9rem; font-weight: 600; color: #333; margin: 0; word-break: break-all; }
+    .pptx-subtitle { font-size: 0.8rem; color: #888; margin: 0; }
+    .btn-download {
+      background: #1565c0;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 0.45rem 1.1rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      margin-top: 0.25rem;
+    }
+    .btn-download:hover { background: #0d47a1; }
+
+    .image-descriptions-panel {
+      border-top: 2px solid #e3f2fd;
+      padding: 0.5rem 0.8rem 0.75rem;
+      background: #f8fbff;
+    }
+    .image-descriptions-header {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #1565c0;
+      margin-bottom: 0.5rem;
+    }
+    .image-desc-card {
+      background: white;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 0.5rem 0.75rem;
+      margin-bottom: 0.4rem;
+    }
+    .image-desc-top {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.25rem;
+    }
+    .image-desc-name {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #333;
+    }
+    .image-desc-text {
+      font-size: 0.78rem;
+      color: #555;
+      margin: 0;
+      line-height: 1.4;
     }
 
     /* --- Detail header responsive --- */
@@ -455,6 +560,7 @@ import { environment } from '../../../environments/environment';
 export class DocumentDetailPage implements OnInit {
   doc: DocumentDetail | null = null;
   pdfUrl: SafeResourceUrl | null = null;
+  rawBlobUrl = '';
   expandedSections = new Set<number>();
   loading = true;
   error = '';
@@ -563,11 +669,12 @@ export class DocumentDetailPage implements OnInit {
             if (f.correctedValue) this.correctedFieldCount++;
           }
         }
-        // Build PDF URL from the blob proxy endpoint
+        // Build blob URL from the blob proxy endpoint
         if (data.fileName) {
           const baseUrl = environment.apiBaseUrl || '';
-          const pdfPath = `${baseUrl}/api/blobs/${encodeURIComponent(data.fileName)}`;
-          this.pdfUrl = this.sanitizer.bypassSecurityTrustResourceUrl(pdfPath);
+          const blobPath = `${baseUrl}/api/blobs/${encodeURIComponent(data.fileName)}`;
+          this.rawBlobUrl = blobPath;
+          this.pdfUrl = this.sanitizer.bypassSecurityTrustResourceUrl(blobPath);
         }
         // Auto-expand table data sections by default
         if (data.sections?.length > 0 && this.expandedSections.size === 0) {

@@ -17,12 +17,13 @@ export class ApiService {
     return this.http.get<BlobFile[]>(`${this.base}/blobs`);
   }
 
-  getDocuments(params?: { category?: string; state?: string; status?: string; reviewed?: boolean }): Observable<DocumentSummary[]> {
+  getDocuments(params?: { category?: string; state?: string; status?: string; reviewed?: boolean; documentType?: string }): Observable<DocumentSummary[]> {
     let httpParams = new HttpParams();
     if (params?.category) httpParams = httpParams.set('category', params.category);
     if (params?.state) httpParams = httpParams.set('state', params.state);
     if (params?.status) httpParams = httpParams.set('status', params.status);
     if (params?.reviewed !== undefined) httpParams = httpParams.set('reviewed', String(params.reviewed));
+    if (params?.documentType) httpParams = httpParams.set('document_type', params.documentType);
     return this.http.get<DocumentSummary[]>(`${this.base}/documents`, { params: httpParams });
   }
 

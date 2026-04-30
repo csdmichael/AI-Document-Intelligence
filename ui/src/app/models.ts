@@ -8,12 +8,20 @@ export interface Field {
   correctedAt: string | null;
 }
 
+export interface ImageDescription {
+  figureName: string;
+  description: string;
+  confidence: number;
+  confidenceCategory: string;
+}
+
 export interface Section {
   sectionName: string;
   sectionIndex: number;
   sectionConfidence: number;
   confidenceCategory: string;
   fields: Field[];
+  imageDescriptions: ImageDescription[];
 }
 
 export interface ModelComparison {
@@ -36,6 +44,7 @@ export interface DocumentSummary {
   totalFields: number;
   parsedAt: string | null;
   modelSource: string | null;
+  documentType?: string;
 }
 
 export interface DocumentDetail extends DocumentSummary {
@@ -61,6 +70,7 @@ export interface BlobFile {
   size: number;
   lastModified: string;
   url: string;
+  contentType?: string;
 }
 
 export const CATEGORY_COLORS: Record<string, string> = {

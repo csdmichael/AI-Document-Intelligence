@@ -6,6 +6,7 @@ import { IonSpinner } from '@ionic/angular/standalone';
 import { forkJoin, catchError, of } from 'rxjs';
 import { ApiService } from '../../api.service';
 import { BlobFile, DocumentSummary, CATEGORY_COLORS } from '../../models';
+import { environment } from '../../../environments/environment';
 
 const PAGE_SIZE = 20;
 
@@ -19,6 +20,7 @@ interface BlobRow {
   tier: string;
   parsed: boolean;
   document: DocumentSummary | null;
+  isPptx: boolean;
 }
 
 @Component({
@@ -103,7 +105,8 @@ interface BlobRow {
               <tr>
                 <th>#</th>
                 <th>File Name</th>
-                <th>State</th>
+                <th>Type</th>
+                <th>State / Filter</th>
                 <th>Size</th>
                 <th>Last Modified</th>
                 <th>Parsed</th>
@@ -113,10 +116,18 @@ interface BlobRow {
             </thead>
             <tbody>
               <tr *ngFor="let row of pagedRows; let i = index"
-                  style="cursor: pointer;"
+                  [style.cursor]="row.document ? 'pointer' : 'default'"
                   (click)="onRowClick(row)">
                 <td>{{ (page - 1) * pageSize + i + 1 }}</td>
-                <td><span class="doc-link">{{ row.name }}</span></td>
+                <td>
+                  <span class="doc-link">{{ row.name }}</span>
+                  <a *ngIf="row.isPptx" [href]="getBlobDownloadUrl(row.name)" download (click)="$event.stopPropagation()" class="pptx-dl-link" title="Download PPTX">⬇</a>
+                </td>
+                <td>
+                  <span class="doc-type-badge" [class.pptx]="row.isPptx">
+                    {{ row.isPptx ? '📊 PPTX' : '📄 PDF' }}
+                  </span>
+                </td>
                 <td>{{ row.stateName }} ({{ row.stateAbbr }})</td>
                 <td>{{ formatSize(row.size) }}</td>
                 <td>{{ row.lastModified | date:'short' }}</td>
@@ -152,6 +163,11 @@ interface BlobRow {
               <span *ngIf="!row.parsed" class="parsed-no">✗</span>
             </div>
             <div class="doc-card-meta">
+              <span class="meta-item">
+                <span class="doc-type-badge" [class.pptx]="row.isPptx">
+                  {{ row.isPptx ? '📊 PPTX' : '📄 PDF' }}
+                </span>
+              </span>
               <span class="meta-item">{{ row.stateName }}</span>
               <span class="meta-item">{{ formatSize(row.size) }}</span>
               <span *ngIf="row.tier" class="meta-item">
@@ -245,6 +261,26 @@ interface BlobRow {
       border-radius: 50%;
       display: inline-block;
     }
+    .doc-type-badge {
+      font-size: 0.7rem;
+      background: #e3f2fd;
+      color: #1565c0;
+      border-radius: 4px;
+      padding: 0.1rem 0.4rem;
+      white-space: nowrap;
+    }
+    .doc-type-badge.pptx {
+      background: #fce4ec;
+      color: #880e4f;
+    }
+    .pptx-dl-link {
+      margin-left: 0.4rem;
+      font-size: 0.75rem;
+      color: #1565c0;
+      text-decoration: none;
+      opacity: 0.7;
+    }
+    .pptx-dl-link:hover { opacity: 1; }
     @media (max-width: 767px) {
       .search-input { min-width: 120px; width: 100%; }
       .conf-legend { font-size: 0.7rem; gap: 0.5rem; }
@@ -374,6 +410,7 @@ export class BlobFilesPage implements OnInit {
         this.allRows = blobs.map(b => {
           const parsed = this.extractFromFilename(b.name);
           const doc = this.docMap.get(b.name) || null;
+          const isPptx = b.name.toLowerCase().endsWith('.pptx');
           return {
             ...b,
             stateAbbr: parsed.stateAbbr,
@@ -381,6 +418,7 @@ export class BlobFilesPage implements OnInit {
             tier: parsed.tier,
             parsed: !!doc,
             document: doc,
+            isPptx,
           };
         }).sort((a, b) => a.name.localeCompare(b.name));
 
@@ -411,7 +449,26 @@ export class BlobFilesPage implements OnInit {
     });
   }
 
+  getBlobDownloadUrl(name: string): string {
+    const baseUrl = environment.apiBaseUrl || '';
+    return `${baseUrl}/api/blobs/${encodeURIComponent(name)}`;
+  }
+
   private extractFromFilename(name: string): { stateAbbr: string; stateName: string; tier: string } {
+    // PPTX pattern: filter_design_<family_key>_<variant_index>.pptx
+    if (name.toLowerCase().endsWith('.pptx')) {
+      const base = name.replace(/\.pptx$/i, '');
+      const parts = base.split('_');
+      // filter_design_butterworth_lp_01 → family starts at index 2
+      if (parts[0] === 'filter' && parts[1] === 'design' && parts.length >= 4) {
+        const familyParts = parts.slice(2, -1);
+        const familyKey  = familyParts.join('_');
+        const label      = familyKey.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        return { stateAbbr: familyKey.slice(0, 8).toUpperCase(), stateName: label, tier: '' };
+      }
+      return { stateAbbr: 'PPTX', stateName: 'Filter Design', tier: '' };
+    }
+
     // Patterns: tax_exemption_CA_001.pdf or lq_tax_exemption_CA_001_blue.pdf
     const base = name.replace('.pdf', '');
     const parts = base.split('_');

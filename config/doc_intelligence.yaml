@@ -104,3 +104,77 @@ retraining:
   training_container: "doc-intelligence-training"
   # Blob prefix within the training container
   training_prefix: "training/"
+
+# Section mapping for PPTX engineering filter-design documents
+pptx_section_mapping:
+  filter_specs:
+    section_name: "Filter Specifications"
+    keywords:
+      - "filter"
+      - "order"
+      - "cutoff"
+      - "bandwidth"
+      - "frequency"
+      - "specification"
+      - "spec"
+      - "type"
+      - "family"
+  frequency_response:
+    section_name: "Frequency Response"
+    keywords:
+      - "bode"
+      - "magnitude"
+      - "phase"
+      - "gain"
+      - "ripple"
+      - "attenuation"
+      - "roll-off"
+      - "passband"
+      - "stopband"
+      - "response"
+  circuit_design:
+    section_name: "Circuit Design"
+    keywords:
+      - "circuit"
+      - "topology"
+      - "op-amp"
+      - "resistor"
+      - "capacitor"
+      - "sallen"
+      - "schematic"
+      - "stage"
+      - "section"
+      - "transposed"
+  design_parameters:
+    section_name: "Design Parameters"
+    keywords:
+      - "parameter"
+      - "angular"
+      - "omega"
+      - "sampling"
+      - "nyquist"
+      - "window"
+      - "hamming"
+      - "group delay"
+      - "coefficient"
+  applications:
+    section_name: "Applications"
+    keywords:
+      - "application"
+      - "use case"
+      - "system"
+      - "audio"
+      - "radar"
+      - "sensor"
+      - "medical"
+  theory:
+    section_name: "Theory & Transfer Function"
+    keywords:
+      - "transfer"
+      - "polynomial"
+      - "chebyshev"
+      - "butterworth"
+      - "bessel"
+      - "elliptic"
+      - "equation"
+      - "formula"

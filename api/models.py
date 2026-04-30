@@ -20,12 +20,21 @@ class FieldResponse(BaseModel):
     correctedAt: Optional[str] = None
 
 
+class ImageDescription(BaseModel):
+    """Description of an embedded image or diagram extracted from a PPTX slide."""
+    figureName: str
+    description: str
+    confidence: float
+    confidenceCategory: str
+
+
 class SectionResponse(BaseModel):
     sectionName: str
     sectionIndex: int
     sectionConfidence: float
     confidenceCategory: str
     fields: list[FieldResponse]
+    imageDescriptions: list[ImageDescription] = []
 
 
 class ModelComparison(BaseModel):
@@ -49,6 +58,7 @@ class DocumentSummary(BaseModel):
     totalFields: int
     parsedAt: Optional[str] = None
     modelSource: Optional[str] = None
+    documentType: Optional[str] = "pdf"
 
 
 class DocumentDetail(BaseModel):
@@ -70,6 +80,7 @@ class DocumentDetail(BaseModel):
     parsedAt: Optional[str] = None
     reviewedBy: Optional[str] = None
     reviewedAt: Optional[str] = None
+    documentType: Optional[str] = "pdf"
 
 
 class ConfidenceStats(BaseModel):
@@ -85,6 +96,7 @@ class BlobFile(BaseModel):
     size: int
     lastModified: str
     url: str
+    contentType: Optional[str] = "application/pdf"
 
 
 class RetrainingStatus(BaseModel):

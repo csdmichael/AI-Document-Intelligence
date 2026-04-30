@@ -116,6 +116,16 @@ interface DocGroup {
             </select>
           </div>
 
+          <!-- Document Type Filter -->
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <label style="font-size: 0.8rem; color: #666;">Type:</label>
+            <select class="state-select" [(ngModel)]="docTypeFilter" (ngModelChange)="applyFilters()">
+              <option value="All">All Types</option>
+              <option value="pdf">📄 PDF</option>
+              <option value="pptx">📊 PPTX</option>
+            </select>
+          </div>
+
           <!-- Retraining Panel -->
           <div *ngIf="retraining" class="retrain-badge" [class.ready]="retraining.readyForTraining">
             <span>🧠 {{ retraining.reviewedDocuments }}/{{ retraining.minimumRequired }} reviewed</span>
@@ -175,7 +185,7 @@ interface DocGroup {
                   <th style="width: 36px;">
                     <input type="checkbox" [checked]="isGroupAllSelected(group)" [indeterminate]="isGroupIndeterminate(group)" (change)="toggleGroupSelection(group, $event)" title="Select all in group" />
                   </th>
-                  <th>#</th><th>File Name</th><th>State</th><th>Model</th><th>Status</th>
+                  <th>#</th><th>File Name</th><th>Type</th><th>State</th><th>Model</th><th>Status</th>
                   <th>Confidence</th><th class="hide-tablet">Sections</th><th class="hide-tablet">Fields</th><th>Parsed</th>
                 </tr>
               </thead>
@@ -188,6 +198,11 @@ interface DocGroup {
                   </td>
                   <td (click)="openDocument(doc.id)">{{ (group.page - 1) * pageSize + i + 1 }}</td>
                   <td (click)="openDocument(doc.id)"><span class="doc-link">{{ doc.fileName }}</span></td>
+                  <td (click)="openDocument(doc.id)">
+                    <span class="doc-type-badge" [class.pptx]="doc.documentType === 'pptx'" [title]="doc.documentType === 'pptx' ? 'PowerPoint Presentation' : 'PDF Document'">
+                      {{ doc.documentType === 'pptx' ? '📊 PPTX' : '📄 PDF' }}
+                    </span>
+                  </td>
                   <td (click)="openDocument(doc.id)">{{ doc.stateName }} ({{ doc.state }})</td>
                   <td (click)="openDocument(doc.id)">
                     <span class="model-badge" [title]="doc.modelSource || ''">
@@ -223,6 +238,11 @@ interface DocGroup {
                 </span>
               </div>
               <div class="doc-card-meta">
+                <span class="meta-item">
+                  <span class="doc-type-badge" [class.pptx]="doc.documentType === 'pptx'">
+                    {{ doc.documentType === 'pptx' ? '📊 PPTX' : '📄 PDF' }}
+                  </span>
+                </span>
                 <span class="meta-item">{{ doc.stateName }} ({{ doc.state }})</span>
                 <span class="meta-item">
                   <span [class]="'status-badge status-' + doc.status">{{ doc.status }}</span>
@@ -304,6 +324,18 @@ interface DocGroup {
     .bulk-btn.clear:hover { background: #ddd; }
     .row-selected { background: #e3f2fd !important; }
     input[type="checkbox"] { cursor: pointer; width: 16px; height: 16px; accent-color: #1565c0; }
+    .doc-type-badge {
+      font-size: 0.7rem;
+      background: #e3f2fd;
+      color: #1565c0;
+      border-radius: 4px;
+      padding: 0.1rem 0.4rem;
+      white-space: nowrap;
+    }
+    .doc-type-badge.pptx {
+      background: #fce4ec;
+      color: #880e4f;
+    }
   `],
 })
 export class DashboardPage implements OnInit {
@@ -317,6 +349,7 @@ export class DashboardPage implements OnInit {
   categoryFilter = 'All';
   reviewFilter: 'all' | 'reviewed' | 'not-reviewed' = 'all';
   stateFilter = 'All';
+  docTypeFilter = 'All';
   states: string[] = [];
   stateNameMap: Record<string, string> = {};
   categoryLabels = CATEGORY_LABELS;
@@ -507,6 +540,13 @@ export class DashboardPage implements OnInit {
     }
     if (this.stateFilter !== 'All') {
       filtered = filtered.filter(d => d.state === this.stateFilter);
+    }
+    if (this.docTypeFilter !== 'All') {
+      if (this.docTypeFilter === 'pdf') {
+        filtered = filtered.filter(d => !d.documentType || d.documentType === 'pdf');
+      } else {
+        filtered = filtered.filter(d => d.documentType === this.docTypeFilter);
+      }
     }
     if (this.reviewFilter === 'reviewed') {
       filtered = filtered.filter(d => d.status === 'reviewed' || d.status === 'approved');
