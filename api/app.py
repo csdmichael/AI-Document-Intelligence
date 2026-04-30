@@ -78,18 +78,32 @@ def health():
 # Blob Storage Endpoints (unparsed documents)
 # ---------------------------------------------------------------------------
 
+_MIME_TYPES: dict[str, str] = {
+    ".pdf": "application/pdf",
+    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+}
+
+_INLINE_TYPES = {".pdf"}
+
+
+def _get_mime_type(name: str) -> str | None:
+    """Return the MIME type for a supported document extension, or None."""
+    ext = "." + name.rsplit(".", 1)[-1].lower() if "." in name else ""
+    return _MIME_TYPES.get(ext)
+
+
+# ---------------------------------------------------------------------------
+# Blob Storage Endpoints (unparsed documents)
+# ---------------------------------------------------------------------------
+
 @app.get("/api/blobs", response_model=list[BlobFile])
 def list_blobs():
     """List all PDF and PPTX files in the tax-forms blob container."""
     container = get_blob_container()
     blobs = []
     for b in container.list_blobs():
-        name_lower = b.name.lower()
-        if name_lower.endswith(".pdf"):
-            content_type = "application/pdf"
-        elif name_lower.endswith(".pptx"):
-            content_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-        else:
+        content_type = _get_mime_type(b.name)
+        if not content_type:
             continue
         blobs.append(BlobFile(
             name=b.name,
@@ -108,13 +122,13 @@ def get_blob_content(blob_name: str):
     try:
         blob_client = container.get_blob_client(blob_name)
         stream = blob_client.download_blob()
-        name_lower = blob_name.lower()
-        if name_lower.endswith(".pptx"):
-            media_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-            disposition = f'attachment; filename="{blob_name}"'
-        else:
-            media_type = "application/pdf"
-            disposition = f'inline; filename="{blob_name}"'
+        media_type = _get_mime_type(blob_name) or "application/octet-stream"
+        ext = "." + blob_name.rsplit(".", 1)[-1].lower() if "." in blob_name else ""
+        disposition = (
+            f'inline; filename="{blob_name}"'
+            if ext in _INLINE_TYPES
+            else f'attachment; filename="{blob_name}"'
+        )
         return StreamingResponse(
             stream.chunks(),
             media_type=media_type,
@@ -159,9 +173,11 @@ def list_documents(
         conditions.append("(c.status != 'reviewed' AND c.status != 'approved')")
     if document_type:
         if document_type.lower() == "pdf":
-            # PDFs may have documentType="pdf" or the field may be absent (legacy records)
+            # PDFs may have documentType="pdf" or the field may be absent (legacy records
+            # parsed before documentType was introduced).
             conditions.append("(c.documentType = @docType OR NOT IS_DEFINED(c.documentType))")
         else:
+            # PPTX (and any future types) are new — all records will have documentType set.
             conditions.append("c.documentType = @docType")
         params.append({"name": "@docType", "value": document_type.lower()})
 
