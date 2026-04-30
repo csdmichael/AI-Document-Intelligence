@@ -290,8 +290,9 @@ Documents, sections, and fields are color-coded by confidence:
 1. **Browse** → Admin views parsed documents grouped by confidence category
 2. **Drill Down** → Click a document to see sections, each with its own confidence badge
 3. **Inspect** → Expand a section to see individual fields with extracted values
-4. **Correct** → Click "Edit" on any field to enter the corrected value
-5. **Approve** → Mark the document as approved after review
+4. **Correct Fields** → Click "Edit" on any field to enter the corrected value
+5. **Correct Images/Diagrams** → Click "Edit" on any extracted image description to fix it
+6. **Approve** → Mark the document as approved after review
 
 Corrections are stored in Cosmos DB alongside the original extracted values, maintaining full audit trail with `correctedBy`, `correctedAt` metadata.
 
@@ -585,17 +586,20 @@ Show the architecture diagram at the top of this README or open `docs/Architectu
    - Document header with overall confidence badge
    - Status (parsed/reviewed/approved)
    - Metadata grid (sections, fields, parsed date)
+   - **PPTX files** render inline via Office Online viewer (with Google Docs viewer fallback); PDF files render via the browser's built-in viewer
 3. **Expand a section** by clicking it
 4. **Show the fields table**:
    - Extracted value from AI
    - Per-field confidence score with color badge
    - Corrected value column (empty until human edits)
+5. **Show image/diagram descriptions** — expand a section with images to see AI-extracted descriptions with confidence scores and edit buttons
 
 #### Step 5: Human-in-the-Loop Correction
 
 1. **Click "Edit"** on a low-confidence field
 2. **Type a corrected value** and click "Save"
-3. **Point out**: The correction is stored with audit metadata (`correctedBy`, `correctedAt`)
+3. **Edit image/diagram descriptions** — click "Edit" on any extracted description under the Images & Diagrams sub-section, correct the text, and save
+4. **Point out**: Corrections are stored with audit metadata (`correctedBy`, `correctedAt`)
 
 > "Every correction feeds back into our training pipeline. Once we collect enough labeled data, we train a custom Document Intelligence model to improve accuracy for these specific form types."
 
@@ -625,6 +629,7 @@ Show the architecture diagram at the top of this README or open `docs/Architectu
 | `/api/documents/stats` | GET | Confidence category statistics |
 | `/api/documents/{id}` | GET | Full document detail with sections/fields |
 | `/api/documents/{id}/sections/{idx}/fields/{name}` | PUT | Correct a field value |
+| `/api/documents/{id}/sections/{idx}/images/{name}` | PUT | Correct an image/diagram description |
 | `/api/documents/{id}/approve` | PUT | Approve a document |
 
 3. **Try the `/api/documents/stats` endpoint** live in Swagger
