@@ -17,6 +17,10 @@ export class ApiService {
     return this.http.get<BlobFile[]>(`${this.base}/blobs`);
   }
 
+  getBlobSasUrl(blobName: string): Observable<{ url: string }> {
+    return this.http.get<{ url: string }>(`${this.base}/blobs/${encodeURIComponent(blobName)}/sas-url`);
+  }
+
   getDocuments(params?: { category?: string; state?: string; status?: string; reviewed?: boolean; documentType?: string }): Observable<DocumentSummary[]> {
     let httpParams = new HttpParams();
     if (params?.category) httpParams = httpParams.set('category', params.category);

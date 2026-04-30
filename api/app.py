@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from api.config import (
-    BLOB_URL, STORAGE_CONTAINER_NAME, COSMOS_ENDPOINT,
+    BLOB_URL, STORAGE_ACCOUNT_NAME, STORAGE_CONTAINER_NAME, COSMOS_ENDPOINT,
     COSMOS_DATABASE, COSMOS_CONTAINER, API_HOST, API_PORT,
     DOCUMENT_INTELLIGENCE_ENDPOINT, CORS_ORIGINS,
 )
@@ -139,6 +139,39 @@ def get_blob_content(blob_name: str):
         )
     except Exception:
         raise HTTPException(status_code=404, detail=f"Blob '{blob_name}' not found")
+
+
+@app.get("/api/blobs/{blob_name:path}/sas-url")
+def get_blob_sas_url(blob_name: str):
+    """Generate a temporary SAS URL for viewing a blob (e.g. via Office Online)."""
+    from azure.storage.blob import generate_blob_sas, BlobSasPermissions
+    from datetime import timedelta
+
+    try:
+        blob_service = get_blob_container().get_blob_client(blob_name)
+        # Verify blob exists
+        blob_service.get_blob_properties()
+    except Exception:
+        raise HTTPException(status_code=404, detail=f"Blob '{blob_name}' not found")
+
+    try:
+        svc = BlobServiceClient(account_url=BLOB_URL, credential=get_credential())
+        udk = svc.get_user_delegation_key(
+            key_start_time=datetime.now(timezone.utc),
+            key_expiry_time=datetime.now(timezone.utc) + timedelta(hours=1),
+        )
+        sas_token = generate_blob_sas(
+            account_name=STORAGE_ACCOUNT_NAME,
+            container_name=STORAGE_CONTAINER_NAME,
+            blob_name=blob_name,
+            user_delegation_key=udk,
+            permission=BlobSasPermissions(read=True),
+            expiry=datetime.now(timezone.utc) + timedelta(hours=1),
+        )
+        sas_url = f"{BLOB_URL}/{STORAGE_CONTAINER_NAME}/{blob_name}?{sas_token}"
+        return {"url": sas_url}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to generate SAS URL: {exc}")
 
 
 # ---------------------------------------------------------------------------

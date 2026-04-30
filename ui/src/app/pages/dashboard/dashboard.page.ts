@@ -27,7 +27,7 @@ interface DocGroup {
   standalone: true,
   imports: [CommonModule, FormsModule, IonSpinner],
   template: `
-    <div class="page-container" style="padding: 1.5rem; max-width: 1400px; margin: 0 auto;">
+    <div class="page-container" style="padding: 1.5rem; max-width: 1400px; margin: 0 auto; padding-bottom: 3rem;">
       <div *ngIf="loading" style="text-align: center; padding: 3rem;">
         <ion-spinner name="crescent"></ion-spinner>
         <p>Loading dashboard...</p>

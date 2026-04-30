@@ -115,15 +115,22 @@ import { environment } from '../../../environments/environment';
             <div class="pdf-container">
               <!-- PDF inline viewer -->
               <iframe *ngIf="pdfUrl && doc.documentType !== 'pptx'" [src]="pdfUrl" class="pdf-frame"></iframe>
-              <!-- PPTX download prompt -->
-              <div *ngIf="doc.documentType === 'pptx'" class="pptx-preview">
-                <div class="pptx-icon">📊</div>
-                <p class="pptx-title">{{ doc.fileName }}</p>
-                <p class="pptx-subtitle">PowerPoint presentations cannot be previewed inline.</p>
-                <a *ngIf="rawBlobUrl" [href]="rawBlobUrl" download class="btn-download">
-                  ⬇ Download Presentation
-                </a>
-              </div>
+              <!-- PPTX inline viewer via Office Online -->
+              <ng-container *ngIf="doc.documentType === 'pptx'">
+                <iframe *ngIf="pptxViewerUrl" [src]="pptxViewerUrl" class="pdf-frame" allowfullscreen></iframe>
+                <div *ngIf="pptxLoading" class="pptx-preview">
+                  <ion-spinner name="crescent"></ion-spinner>
+                  <p class="pptx-subtitle">Loading presentation viewer...</p>
+                </div>
+                <div *ngIf="!pptxViewerUrl && !pptxLoading" class="pptx-preview">
+                  <div class="pptx-icon">📊</div>
+                  <p class="pptx-title">{{ doc.fileName }}</p>
+                  <p class="pptx-subtitle">{{ pptxError || 'Presentation preview not available.' }}</p>
+                  <a *ngIf="rawBlobUrl" [href]="rawBlobUrl" download class="btn-download">
+                    ⬇ Download Presentation
+                  </a>
+                </div>
+              </ng-container>
               <div *ngIf="!pdfUrl && doc.documentType !== 'pptx'" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999;">
                 <p>Document preview not available</p>
               </div>
@@ -560,6 +567,9 @@ import { environment } from '../../../environments/environment';
 export class DocumentDetailPage implements OnInit {
   doc: DocumentDetail | null = null;
   pdfUrl: SafeResourceUrl | null = null;
+  pptxViewerUrl: SafeResourceUrl | null = null;
+  pptxLoading = false;
+  pptxError = '';
   rawBlobUrl = '';
   expandedSections = new Set<number>();
   loading = true;
@@ -674,7 +684,26 @@ export class DocumentDetailPage implements OnInit {
           const baseUrl = environment.apiBaseUrl || '';
           const blobPath = `${baseUrl}/api/blobs/${encodeURIComponent(data.fileName)}`;
           this.rawBlobUrl = blobPath;
-          this.pdfUrl = this.sanitizer.bypassSecurityTrustResourceUrl(blobPath);
+
+          if (data.documentType === 'pptx') {
+            // For PPTX: get SAS URL and use Office Online viewer
+            this.pptxViewerUrl = null;
+            this.pptxLoading = true;
+            this.pptxError = '';
+            this.api.getBlobSasUrl(data.fileName).subscribe({
+              next: (resp) => {
+                const viewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(resp.url)}`;
+                this.pptxViewerUrl = this.sanitizer.bypassSecurityTrustResourceUrl(viewerUrl);
+                this.pptxLoading = false;
+              },
+              error: () => {
+                this.pptxError = 'Could not load presentation viewer. Use the download link below.';
+                this.pptxLoading = false;
+              },
+            });
+          } else {
+            this.pdfUrl = this.sanitizer.bypassSecurityTrustResourceUrl(blobPath);
+          }
         }
         // Auto-expand table data sections by default
         if (data.sections?.length > 0 && this.expandedSections.size === 0) {

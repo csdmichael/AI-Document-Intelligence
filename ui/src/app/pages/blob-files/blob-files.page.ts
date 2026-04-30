@@ -28,7 +28,7 @@ interface BlobRow {
   standalone: true,
   imports: [CommonModule, FormsModule, IonSpinner],
   template: `
-    <div class="page-container" style="padding: 1.5rem; max-width: 1400px; margin: 0 auto; height: 100vh; overflow-y: auto; box-sizing: border-box;">
+    <div class="page-container" style="padding: 1.5rem; max-width: 1400px; margin: 0 auto; box-sizing: border-box; padding-bottom: 3rem;">
       <div *ngIf="loading" style="text-align: center; padding: 3rem;">
         <ion-spinner name="crescent"></ion-spinner>
         <p>Loading blob files...</p>
@@ -93,6 +93,11 @@ interface BlobRow {
             <select class="state-select" [value]="stateFilter" (change)="stateFilter = $any($event.target).value; applyFilters()">
               <option value="All">All States</option>
               <option *ngFor="let s of states" [value]="s">{{ s }}</option>
+            </select>
+            <select class="state-select" [(ngModel)]="docTypeFilter" (ngModelChange)="applyFilters()">
+              <option value="All">All Types</option>
+              <option value="pdf">📄 PDF</option>
+              <option value="pptx">📊 PPTX</option>
             </select>
           </div>
           <span style="font-size: 0.8rem; color: #888;">{{ filteredRows.length }} files shown</span>
@@ -296,6 +301,7 @@ export class BlobFilesPage implements OnInit {
 
   searchTerm = '';
   stateFilter = 'All';
+  docTypeFilter = 'All';
   parseFilter: 'all' | 'parsed' | 'unparsed' = 'all';
   states: string[] = [];
 
@@ -378,6 +384,14 @@ export class BlobFilesPage implements OnInit {
     else if (this.parseFilter === 'unparsed') rows = rows.filter(r => !r.parsed);
 
     if (this.stateFilter !== 'All') rows = rows.filter(r => r.stateAbbr === this.stateFilter);
+
+    if (this.docTypeFilter !== 'All') {
+      if (this.docTypeFilter === 'pptx') {
+        rows = rows.filter(r => r.isPptx);
+      } else {
+        rows = rows.filter(r => !r.isPptx);
+      }
+    }
 
     if (this.searchTerm.trim()) {
       const term = this.searchTerm.toLowerCase();
