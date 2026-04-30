@@ -361,7 +361,6 @@ def parse_single_pptx(di_client: DocumentIntelligenceClient,
     poller = di_client.begin_analyze_document(
         effective_model,
         AnalyzeDocumentRequest(url_source=doc_url),
-        features=[DocumentAnalysisFeature.KEY_VALUE_PAIRS],
     )
     result = poller.result()
 
