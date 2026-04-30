@@ -25,3 +25,8 @@ forms:
   customer_city_state_zip: "Olathe, KS 66062"
   customer_phone: "(913) 397-8200"
   customer_ein: "74-2081254"
+
+pptx:
+  # Number of filter-design PPTX presentations to generate (10 families × 10 variants = 100)
+  total_count: 100
+  output_dir: "data/pptx"

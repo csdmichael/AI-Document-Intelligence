@@ -80,32 +80,46 @@ def health():
 
 @app.get("/api/blobs", response_model=list[BlobFile])
 def list_blobs():
-    """List all PDF files in the tax-forms blob container."""
+    """List all PDF and PPTX files in the tax-forms blob container."""
     container = get_blob_container()
     blobs = []
     for b in container.list_blobs():
-        if b.name.endswith(".pdf"):
-            blobs.append(BlobFile(
-                name=b.name,
-                size=b.size or 0,
-                lastModified=b.last_modified.isoformat() if b.last_modified else "",
-                url=f"{BLOB_URL}/{STORAGE_CONTAINER_NAME}/{b.name}",
-            ))
+        name_lower = b.name.lower()
+        if name_lower.endswith(".pdf"):
+            content_type = "application/pdf"
+        elif name_lower.endswith(".pptx"):
+            content_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        else:
+            continue
+        blobs.append(BlobFile(
+            name=b.name,
+            size=b.size or 0,
+            lastModified=b.last_modified.isoformat() if b.last_modified else "",
+            url=f"{BLOB_URL}/{STORAGE_CONTAINER_NAME}/{b.name}",
+            contentType=content_type,
+        ))
     return blobs
 
 
 @app.get("/api/blobs/{blob_name:path}")
 def get_blob_content(blob_name: str):
-    """Proxy a blob's content for PDF viewing in the browser."""
+    """Proxy a blob's content for viewing/downloading in the browser."""
     container = get_blob_container()
     try:
         blob_client = container.get_blob_client(blob_name)
         stream = blob_client.download_blob()
+        name_lower = blob_name.lower()
+        if name_lower.endswith(".pptx"):
+            media_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            disposition = f'attachment; filename="{blob_name}"'
+        else:
+            media_type = "application/pdf"
+            disposition = f'inline; filename="{blob_name}"'
         return StreamingResponse(
             stream.chunks(),
-            media_type="application/pdf",
+            media_type=media_type,
             headers={
-                "Content-Disposition": f"inline; filename=\"{blob_name}\"",
+                "Content-Disposition": disposition,
                 "Cache-Control": "public, max-age=3600",
             },
         )
@@ -123,6 +137,7 @@ def list_documents(
     state: Optional[str] = Query(None, description="Filter by state abbreviation"),
     status: Optional[str] = Query(None, description="Filter by status: pending|parsed|reviewed|approved"),
     reviewed: Optional[bool] = Query(None, description="Filter by reviewed (true) or not reviewed (false)"),
+    document_type: Optional[str] = Query(None, description="Filter by document type: pdf|pptx"),
 ):
     """List all parsed documents with optional filters."""
     container = get_cosmos_container()
@@ -142,11 +157,18 @@ def list_documents(
         conditions.append("(c.status = 'reviewed' OR c.status = 'approved')")
     elif reviewed is False:
         conditions.append("(c.status != 'reviewed' AND c.status != 'approved')")
+    if document_type:
+        if document_type.lower() == "pdf":
+            # PDFs may have documentType="pdf" or the field may be absent (legacy records)
+            conditions.append("(c.documentType = @docType OR NOT IS_DEFINED(c.documentType))")
+        else:
+            conditions.append("c.documentType = @docType")
+        params.append({"name": "@docType", "value": document_type.lower()})
 
     where_clause = " AND ".join(conditions)
     query = "SELECT c.id, c.fileName, c.state, c.stateName, c.status, " \
             "c.overallConfidence, c.confidenceCategory, c.totalSections, " \
-            "c.totalFields, c.parsedAt FROM c"
+            "c.totalFields, c.parsedAt, c.documentType FROM c"
     if where_clause:
         query += f" WHERE {where_clause}"
     query += " ORDER BY c.overallConfidence ASC"
