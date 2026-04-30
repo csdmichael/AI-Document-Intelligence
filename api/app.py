@@ -20,7 +20,7 @@ from api.config import (
 from api.models import (
     FieldUpdate, BulkStatusUpdate, DocumentSummary, DocumentDetail,
     ConfidenceStats, BlobFile, RetrainingStatus,
-    CustomModelStatus, TrainRequest,
+    CustomModelStatus, TrainRequest, ImageDescriptionUpdate,
 )
 
 app = FastAPI(
@@ -327,6 +327,53 @@ def update_field(document_id: str, section_index: int, field_name: str, update: 
     container.upsert_item(doc)
 
     return {"message": "Field updated", "documentId": document_id, "field": field_name}
+
+
+@app.put("/api/documents/{document_id}/sections/{section_index}/images/{figure_name}")
+def update_image_description(document_id: str, section_index: int, figure_name: str, update: ImageDescriptionUpdate):
+    """
+    Update an image description's corrected value (human-in-the-loop correction).
+    Stores the correction alongside the original extracted description.
+    """
+    container = get_cosmos_container()
+
+    query = "SELECT * FROM c WHERE c.id = @id"
+    params = [{"name": "@id", "value": document_id}]
+    items = list(container.query_items(query=query, parameters=params, enable_cross_partition_query=True))
+
+    if not items:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    doc = items[0]
+
+    section = None
+    for s in doc.get("sections", []):
+        if s.get("sectionIndex") == section_index:
+            section = s
+            break
+
+    if not section:
+        raise HTTPException(status_code=404, detail=f"Section index {section_index} not found")
+
+    image_found = False
+    for img in section.get("imageDescriptions", []):
+        if img.get("figureName") == figure_name:
+            img["correctedDescription"] = update.correctedDescription
+            img["correctedBy"] = update.correctedBy
+            img["correctedAt"] = datetime.now(timezone.utc).isoformat()
+            image_found = True
+            break
+
+    if not image_found:
+        raise HTTPException(status_code=404, detail=f"Image '{figure_name}' not found in section")
+
+    doc["status"] = "reviewed"
+    doc["reviewedBy"] = update.correctedBy
+    doc["reviewedAt"] = datetime.now(timezone.utc).isoformat()
+
+    container.upsert_item(doc)
+
+    return {"message": "Image description updated", "documentId": document_id, "figureName": figure_name}
 
 
 @app.put("/api/documents/bulk-status")

@@ -46,6 +46,16 @@ export class ApiService {
     );
   }
 
+  updateImageDescription(
+    documentId: string, sectionIndex: number, figureName: string,
+    correctedDescription: string, correctedBy: string
+  ): Observable<void> {
+    return this.http.put<void>(
+      `${this.base}/documents/${encodeURIComponent(documentId)}/sections/${sectionIndex}/images/${encodeURIComponent(figureName)}`,
+      { correctedDescription, correctedBy }
+    );
+  }
+
   approveDocument(documentId: string, approvedBy: string): Observable<void> {
     return this.http.put<void>(
       `${this.base}/documents/${encodeURIComponent(documentId)}/approve?approved_by=${encodeURIComponent(approvedBy)}`,

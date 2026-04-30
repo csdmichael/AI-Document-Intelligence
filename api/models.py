@@ -26,6 +26,14 @@ class ImageDescription(BaseModel):
     description: str
     confidence: float
     confidenceCategory: str
+    correctedDescription: Optional[str] = None
+    correctedBy: Optional[str] = None
+    correctedAt: Optional[str] = None
+
+
+class ImageDescriptionUpdate(BaseModel):
+    correctedDescription: str
+    correctedBy: str
 
 
 class SectionResponse(BaseModel):

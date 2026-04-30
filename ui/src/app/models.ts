@@ -13,6 +13,9 @@ export interface ImageDescription {
   description: string;
   confidence: number;
   confidenceCategory: string;
+  correctedDescription: string | null;
+  correctedBy: string | null;
+  correctedAt: string | null;
 }
 
 export interface Section {

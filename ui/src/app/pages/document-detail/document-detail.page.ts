@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { IonSpinner } from '@ionic/angular/standalone';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ApiService } from '../../api.service';
-import { DocumentDetail, Field, Section, CATEGORY_COLORS } from '../../models';
+import { DocumentDetail, Field, Section, ImageDescription, CATEGORY_COLORS } from '../../models';
 import { environment } from '../../../environments/environment';
 
 @Component({
@@ -115,9 +115,18 @@ import { environment } from '../../../environments/environment';
             <div class="pdf-container">
               <!-- PDF inline viewer -->
               <iframe *ngIf="pdfUrl && doc.documentType !== 'pptx'" [src]="pdfUrl" class="pdf-frame"></iframe>
-              <!-- PPTX inline viewer via Office Online -->
+              <!-- PPTX inline viewer with fallback chain -->
               <ng-container *ngIf="doc.documentType === 'pptx'">
                 <iframe *ngIf="pptxViewerUrl" [src]="pptxViewerUrl" class="pdf-frame" allowfullscreen></iframe>
+                <div *ngIf="pptxViewerUrl" class="pptx-viewer-toolbar">
+                  <span class="pptx-viewer-label">{{ pptxViewerName }}</span>
+                  <button *ngIf="pptxCanSwitch" class="btn-switch-viewer" (click)="switchPptxViewer()">
+                    ⇄ Try {{ pptxAlternateViewerName }}
+                  </button>
+                  <a *ngIf="rawBlobUrl" [href]="rawBlobUrl" download class="btn-download-sm">
+                    ⬇ Download
+                  </a>
+                </div>
                 <div *ngIf="pptxLoading" class="pptx-preview">
                   <ion-spinner name="crescent"></ion-spinner>
                   <p class="pptx-subtitle">Loading presentation viewer...</p>
@@ -126,6 +135,9 @@ import { environment } from '../../../environments/environment';
                   <div class="pptx-icon">📊</div>
                   <p class="pptx-title">{{ doc.fileName }}</p>
                   <p class="pptx-subtitle">{{ pptxError || 'Presentation preview not available.' }}</p>
+                  <button *ngIf="pptxCanRetry" class="btn-download" (click)="retryPptxViewer()">
+                    🔄 Retry Viewer
+                  </button>
                   <a *ngIf="rawBlobUrl" [href]="rawBlobUrl" download class="btn-download">
                     ⬇ Download Presentation
                   </a>
@@ -210,14 +222,37 @@ import { environment } from '../../../environments/environment';
                   <div class="image-descriptions-header">
                     🖼 Images &amp; Diagrams ({{ section.imageDescriptions.length }})
                   </div>
-                  <div *ngFor="let img of section.imageDescriptions" class="image-desc-card">
+                  <div *ngFor="let img of section.imageDescriptions; let imgIdx = index" class="image-desc-card" [class.corrected]="!!img.correctedDescription">
                     <div class="image-desc-top">
                       <span class="image-desc-name">{{ img.figureName }}</span>
                       <span [class]="'badge ' + img.confidenceCategory" style="font-size: 0.68rem;">
                         {{ (img.confidence * 100).toFixed(1) }}%
                       </span>
+                      <span *ngIf="img.correctedDescription" class="image-approved-badge">✎ Edited</span>
                     </div>
-                    <p class="image-desc-text">{{ img.description }}</p>
+                    <p class="image-desc-text">{{ img.correctedDescription || img.description }}</p>
+                    <div *ngIf="img.correctedDescription" class="image-original-text">
+                      <small>Original: {{ img.description }}</small>
+                    </div>
+                    <div class="image-desc-actions">
+                      <ng-container *ngIf="editingImage?.sectionIndex !== section.sectionIndex || editingImage?.figureName !== img.figureName">
+                        <button class="btn-edit btn-sm" (click)="startEditImage(section.sectionIndex, img)">
+                          {{ img.correctedDescription ? 'Re-edit' : 'Edit' }}
+                        </button>
+                      </ng-container>
+                      <ng-container *ngIf="editingImage?.sectionIndex === section.sectionIndex && editingImage?.figureName === img.figureName">
+                        <div class="edit-inline image-edit-inline">
+                          <textarea [(ngModel)]="editImageValue" class="edit-textarea" rows="3"
+                                    (keydown.control.enter)="saveEditImage(section.sectionIndex, img.figureName)"></textarea>
+                          <div class="edit-actions">
+                            <button class="btn-save btn-sm" [disabled]="savingImage" (click)="saveEditImage(section.sectionIndex, img.figureName)">
+                              {{ savingImage ? '...' : '✓ Save' }}
+                            </button>
+                            <button class="btn-cancel btn-sm" (click)="cancelEditImage()">✗ Cancel</button>
+                          </div>
+                        </div>
+                      </ng-container>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -442,6 +477,40 @@ import { environment } from '../../../environments/environment';
       margin-top: 0.25rem;
     }
     .btn-download:hover { background: #0d47a1; }
+    .btn-download-sm {
+      font-size: 0.72rem;
+      color: #1565c0;
+      text-decoration: none;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      border: 1px solid #bbdefb;
+      background: white;
+    }
+    .btn-download-sm:hover { background: #e3f2fd; }
+    .btn-switch-viewer {
+      font-size: 0.72rem;
+      color: #4a148c;
+      border: 1px solid #ce93d8;
+      background: #f3e5f5;
+      border-radius: 4px;
+      padding: 0.15rem 0.5rem;
+      cursor: pointer;
+    }
+    .btn-switch-viewer:hover { background: #e1bee7; }
+    .pptx-viewer-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.3rem 0.6rem;
+      background: #f5f5f5;
+      border-top: 1px solid #e0e0e0;
+      font-size: 0.75rem;
+    }
+    .pptx-viewer-label {
+      color: #666;
+      font-weight: 500;
+      margin-right: auto;
+    }
 
     .image-descriptions-panel {
       border-top: 2px solid #e3f2fd;
@@ -477,6 +546,55 @@ import { environment } from '../../../environments/environment';
       color: #555;
       margin: 0;
       line-height: 1.4;
+    }
+    .image-original-text {
+      font-size: 0.7rem;
+      color: #999;
+      margin-top: 0.25rem;
+      padding-top: 0.25rem;
+      border-top: 1px dashed #e0e0e0;
+    }
+    .image-desc-actions {
+      margin-top: 0.35rem;
+      display: flex;
+      justify-content: flex-end;
+    }
+    .image-edit-inline {
+      flex-direction: column;
+      width: 100%;
+    }
+    .edit-textarea {
+      width: 100%;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 0.35rem 0.5rem;
+      font-size: 0.78rem;
+      font-family: inherit;
+      resize: vertical;
+      line-height: 1.4;
+    }
+    .edit-textarea:focus {
+      outline: none;
+      border-color: #0078d4;
+      box-shadow: 0 0 0 2px rgba(0,120,212,0.15);
+    }
+    .edit-actions {
+      display: flex;
+      gap: 0.3rem;
+      margin-top: 0.3rem;
+      justify-content: flex-end;
+    }
+    .image-desc-card.corrected {
+      background: #f1f8e9;
+      border-color: #c5e1a5;
+    }
+    .image-approved-badge {
+      font-size: 0.68rem;
+      color: #2e7d32;
+      background: #e8f5e9;
+      border-radius: 3px;
+      padding: 0.05rem 0.35rem;
+      font-weight: 600;
     }
 
     /* --- Detail header responsive --- */
@@ -570,13 +688,22 @@ export class DocumentDetailPage implements OnInit {
   pptxViewerUrl: SafeResourceUrl | null = null;
   pptxLoading = false;
   pptxError = '';
+  pptxViewerName = '';
+  pptxAlternateViewerName = '';
+  pptxCanSwitch = false;
+  pptxCanRetry = false;
   rawBlobUrl = '';
+  private pptxSasUrl = '';
+  private pptxCurrentViewer: 'office' | 'google' = 'office';
   expandedSections = new Set<number>();
   loading = true;
   error = '';
   editingField: { sectionIndex: number; fieldName: string } | null = null;
   editValue = '';
   saving = false;
+  editingImage: { sectionIndex: number; figureName: string } | null = null;
+  editImageValue = '';
+  savingImage = false;
   correctedFieldCount = 0;
   Math = Math;
 
@@ -667,6 +794,87 @@ export class DocumentDetailPage implements OnInit {
     });
   }
 
+  // --- PPTX Viewer Methods ---
+
+  switchPptxViewer(): void {
+    if (this.pptxCurrentViewer === 'office') {
+      this.setPptxViewer('google');
+    } else {
+      this.setPptxViewer('office');
+    }
+  }
+
+  retryPptxViewer(): void {
+    if (!this.doc) return;
+    this.pptxLoading = true;
+    this.pptxError = '';
+    this.pptxViewerUrl = null;
+    this.api.getBlobSasUrl(this.doc.fileName).subscribe({
+      next: (resp) => {
+        this.pptxSasUrl = resp.url;
+        this.setPptxViewer('office');
+        this.pptxLoading = false;
+      },
+      error: () => {
+        // Try Google Docs viewer with the blob proxy URL
+        this.setPptxViewer('google');
+        this.pptxLoading = false;
+      },
+    });
+  }
+
+  private setPptxViewer(viewer: 'office' | 'google'): void {
+    this.pptxCurrentViewer = viewer;
+    if (viewer === 'office' && this.pptxSasUrl) {
+      const viewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(this.pptxSasUrl)}`;
+      this.pptxViewerUrl = this.sanitizer.bypassSecurityTrustResourceUrl(viewerUrl);
+      this.pptxViewerName = 'Office Online Viewer';
+      this.pptxAlternateViewerName = 'Google Docs Viewer';
+      this.pptxCanSwitch = true;
+    } else if (viewer === 'google') {
+      const url = this.pptxSasUrl || this.rawBlobUrl;
+      if (url) {
+        const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`;
+        this.pptxViewerUrl = this.sanitizer.bypassSecurityTrustResourceUrl(viewerUrl);
+        this.pptxViewerName = 'Google Docs Viewer';
+        this.pptxAlternateViewerName = 'Office Online Viewer';
+        this.pptxCanSwitch = !!this.pptxSasUrl;
+      } else {
+        this.pptxViewerUrl = null;
+        this.pptxError = 'No viewer available for this presentation.';
+        this.pptxCanRetry = true;
+      }
+    }
+  }
+
+  // --- Image Description Editing ---
+
+  startEditImage(sectionIndex: number, img: ImageDescription): void {
+    this.editingImage = { sectionIndex, figureName: img.figureName };
+    this.editImageValue = img.correctedDescription || img.description;
+  }
+
+  cancelEditImage(): void {
+    this.editingImage = null;
+    this.editImageValue = '';
+  }
+
+  saveEditImage(sectionIndex: number, figureName: string): void {
+    if (!this.doc) return;
+    this.savingImage = true;
+    this.api.updateImageDescription(this.doc.id, sectionIndex, figureName, this.editImageValue, 'admin').subscribe({
+      next: () => {
+        this.savingImage = false;
+        this.editingImage = null;
+        this.loadDoc();
+      },
+      error: () => {
+        this.savingImage = false;
+        alert('Failed to save image description');
+      },
+    });
+  }
+
   private loadDoc(): void {
     if (!this.docId) return;
     this.loading = true;
@@ -686,18 +894,25 @@ export class DocumentDetailPage implements OnInit {
           this.rawBlobUrl = blobPath;
 
           if (data.documentType === 'pptx') {
-            // For PPTX: get SAS URL and use Office Online viewer
+            // For PPTX: get SAS URL and use Office Online viewer, fallback to Google Docs
             this.pptxViewerUrl = null;
             this.pptxLoading = true;
             this.pptxError = '';
+            this.pptxCanRetry = false;
             this.api.getBlobSasUrl(data.fileName).subscribe({
               next: (resp) => {
-                const viewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(resp.url)}`;
-                this.pptxViewerUrl = this.sanitizer.bypassSecurityTrustResourceUrl(viewerUrl);
+                this.pptxSasUrl = resp.url;
+                this.setPptxViewer('office');
                 this.pptxLoading = false;
               },
               error: () => {
-                this.pptxError = 'Could not load presentation viewer. Use the download link below.';
+                // SAS URL failed — try Google Docs viewer with blob proxy URL
+                this.pptxSasUrl = '';
+                this.setPptxViewer('google');
+                if (!this.pptxViewerUrl) {
+                  this.pptxError = 'Could not load presentation viewer.';
+                  this.pptxCanRetry = true;
+                }
                 this.pptxLoading = false;
               },
             });
