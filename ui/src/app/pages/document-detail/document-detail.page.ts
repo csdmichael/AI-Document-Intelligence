@@ -151,112 +151,143 @@ import { environment } from '../../../environments/environment';
 
           <!-- Right: Parsed Sections & Fields -->
           <div class="split-right">
-            <!-- Sections -->
-            <div *ngFor="let section of doc.sections" class="section-panel" [style.border-left-color]="getSectionColor(section)">
-              <div class="section-header" (click)="toggleSection(section.sectionIndex)">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                  <strong>{{ section.sectionName }}</strong>
-                  <span style="color: #888; font-size: 0.75rem;">({{ section.fields.length }} fields)</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 0.75rem;">
-                  <div class="kpi-mini">
-                    <span class="kpi-value" [style.color]="getSectionColor(section)">{{ (section.sectionConfidence * 100).toFixed(1) }}%</span>
-                    <span class="kpi-label">Score</span>
-                  </div>
-                  <div class="kpi-mini">
-                    <span class="kpi-value">{{ getCorrectedCount(section) }}/{{ section.fields.length }}</span>
-                    <span class="kpi-label">Fixed</span>
-                  </div>
-                  <span [class]="'badge ' + section.confidenceCategory" style="font-size: 0.7rem;">
-                    {{ section.confidenceCategory }}
-                  </span>
-                  <span style="font-size: 0.75rem; color: #888;">
-                    {{ expandedSections.has(section.sectionIndex) ? '▲' : '▼' }}
-                  </span>
-                </div>
-              </div>
+            <div class="review-tabs" role="tablist" aria-label="Document review views">
+              <button
+                type="button"
+                class="review-tab"
+                [class.active]="activeTab === 'review'"
+                (click)="activeTab = 'review'"
+              >
+                Review
+              </button>
+              <button
+                type="button"
+                class="review-tab"
+                [class.active]="activeTab === 'json'"
+                (click)="activeTab = 'json'"
+              >
+                Cosmos JSON
+              </button>
+            </div>
 
-              <!-- Fields Table -->
-              <div *ngIf="expandedSections.has(section.sectionIndex)" class="fields-panel" (click)="$event.stopPropagation()">
-                <div *ngFor="let field of section.fields" class="field-row" [class.corrected]="!!field.correctedValue">
-                  <div class="field-name">{{ field.fieldName }}</div>
-                  <div class="field-value-area">
-                    <div class="field-extracted">
-                      <span *ngIf="field.extractedValue">{{ field.extractedValue }}</span>
-                      <em *ngIf="!field.extractedValue" style="color: #bbb;">empty</em>
-                    </div>
-                    <div class="field-confidence">
-                      <span [class]="'badge ' + field.confidenceCategory" style="font-size: 0.7rem;">
-                        {{ (field.confidence * 100).toFixed(1) }}%
-                      </span>
-                      <span class="confidence-bar" style="width: 50px;">
-                        <span class="confidence-fill" [style.width]="(field.confidence * 100) + '%'"
-                              [style.background]="getFieldBarColor(field)"></span>
-                      </span>
-                    </div>
+            <ng-container *ngIf="activeTab === 'review'; else jsonTab">
+              <!-- Sections -->
+              <div *ngFor="let section of doc.sections" class="section-panel" [style.border-left-color]="getSectionColor(section)">
+                <div class="section-header" (click)="toggleSection(section.sectionIndex)">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <strong>{{ section.sectionName }}</strong>
+                    <span style="color: #888; font-size: 0.75rem;">({{ section.fields.length }} fields)</span>
                   </div>
-                  <div class="field-correction">
-                    <ng-container *ngIf="editingField?.sectionIndex !== section.sectionIndex || editingField?.fieldName !== field.fieldName">
-                      <span *ngIf="field.correctedValue" class="corrected-value">
-                        {{ field.correctedValue }}
-                        <small>({{ field.correctedBy }})</small>
-                      </span>
-                      <button class="btn-edit btn-sm" (click)="startEdit(section.sectionIndex, field)">
-                        {{ field.correctedValue ? 'Re-edit' : 'Edit' }}
-                      </button>
-                    </ng-container>
-                    <ng-container *ngIf="editingField?.sectionIndex === section.sectionIndex && editingField?.fieldName === field.fieldName">
-                      <div class="edit-inline">
-                        <input type="text" [(ngModel)]="editValue" class="edit-input" (keydown.enter)="saveEdit(section.sectionIndex, field.fieldName)" />
-                        <button class="btn-save btn-sm" [disabled]="saving" (click)="saveEdit(section.sectionIndex, field.fieldName)">
-                          {{ saving ? '...' : '✓' }}
-                        </button>
-                        <button class="btn-cancel btn-sm" (click)="cancelEdit()">✗</button>
+                  <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div class="kpi-mini">
+                      <span class="kpi-value" [style.color]="getSectionColor(section)">{{ (section.sectionConfidence * 100).toFixed(1) }}%</span>
+                      <span class="kpi-label">Score</span>
+                    </div>
+                    <div class="kpi-mini">
+                      <span class="kpi-value">{{ getCorrectedCount(section) }}/{{ section.fields.length }}</span>
+                      <span class="kpi-label">Fixed</span>
+                    </div>
+                    <span [class]="'badge ' + section.confidenceCategory" style="font-size: 0.7rem;">
+                      {{ section.confidenceCategory }}
+                    </span>
+                    <span style="font-size: 0.75rem; color: #888;">
+                      {{ expandedSections.has(section.sectionIndex) ? '▲' : '▼' }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Fields Table -->
+                <div *ngIf="expandedSections.has(section.sectionIndex)" class="fields-panel" (click)="$event.stopPropagation()">
+                  <div *ngFor="let field of section.fields" class="field-row" [class.corrected]="!!field.correctedValue">
+                    <div class="field-name">{{ field.fieldName }}</div>
+                    <div class="field-value-area">
+                      <div class="field-extracted">
+                        <span *ngIf="field.extractedValue">{{ field.extractedValue }}</span>
+                        <em *ngIf="!field.extractedValue" style="color: #bbb;">empty</em>
                       </div>
-                    </ng-container>
-                  </div>
-                </div>
-
-                <!-- Images & Diagrams sub-section -->
-                <div *ngIf="section.imageDescriptions && section.imageDescriptions.length > 0" class="image-descriptions-panel">
-                  <div class="image-descriptions-header">
-                    🖼 Images &amp; Diagrams ({{ section.imageDescriptions.length }})
-                  </div>
-                  <div *ngFor="let img of section.imageDescriptions; let imgIdx = index" class="image-desc-card" [class.corrected]="!!img.correctedDescription">
-                    <div class="image-desc-top">
-                      <span class="image-desc-name">{{ img.figureName }}</span>
-                      <span [class]="'badge ' + img.confidenceCategory" style="font-size: 0.68rem;">
-                        {{ (img.confidence * 100).toFixed(1) }}%
-                      </span>
-                      <span *ngIf="img.correctedDescription" class="image-approved-badge">✎ Edited</span>
+                      <div class="field-confidence">
+                        <span [class]="'badge ' + field.confidenceCategory" style="font-size: 0.7rem;">
+                          {{ (field.confidence * 100).toFixed(1) }}%
+                        </span>
+                        <span class="confidence-bar" style="width: 50px;">
+                          <span class="confidence-fill" [style.width]="(field.confidence * 100) + '%'"
+                                [style.background]="getFieldBarColor(field)"></span>
+                        </span>
+                      </div>
                     </div>
-                    <p class="image-desc-text">{{ img.correctedDescription || img.description }}</p>
-                    <div *ngIf="img.correctedDescription" class="image-original-text">
-                      <small>Original: {{ img.description }}</small>
-                    </div>
-                    <div class="image-desc-actions">
-                      <ng-container *ngIf="editingImage?.sectionIndex !== section.sectionIndex || editingImage?.figureName !== img.figureName">
-                        <button class="btn-edit btn-sm" (click)="startEditImage(section.sectionIndex, img)">
-                          {{ img.correctedDescription ? 'Re-edit' : 'Edit' }}
+                    <div class="field-correction">
+                      <ng-container *ngIf="editingField?.sectionIndex !== section.sectionIndex || editingField?.fieldName !== field.fieldName">
+                        <span *ngIf="field.correctedValue" class="corrected-value">
+                          {{ field.correctedValue }}
+                          <small>({{ field.correctedBy }})</small>
+                        </span>
+                        <button class="btn-edit btn-sm" (click)="startEdit(section.sectionIndex, field)">
+                          {{ field.correctedValue ? 'Re-edit' : 'Edit' }}
                         </button>
                       </ng-container>
-                      <ng-container *ngIf="editingImage?.sectionIndex === section.sectionIndex && editingImage?.figureName === img.figureName">
-                        <div class="edit-inline image-edit-inline">
-                          <textarea [(ngModel)]="editImageValue" class="edit-textarea" rows="3"
-                                    (keydown.control.enter)="saveEditImage(section.sectionIndex, img.figureName)"></textarea>
-                          <div class="edit-actions">
-                            <button class="btn-save btn-sm" [disabled]="savingImage" (click)="saveEditImage(section.sectionIndex, img.figureName)">
-                              {{ savingImage ? '...' : '✓ Save' }}
-                            </button>
-                            <button class="btn-cancel btn-sm" (click)="cancelEditImage()">✗ Cancel</button>
-                          </div>
+                      <ng-container *ngIf="editingField?.sectionIndex === section.sectionIndex && editingField?.fieldName === field.fieldName">
+                        <div class="edit-inline">
+                          <input type="text" [(ngModel)]="editValue" class="edit-input" (keydown.enter)="saveEdit(section.sectionIndex, field.fieldName)" />
+                          <button class="btn-save btn-sm" [disabled]="saving" (click)="saveEdit(section.sectionIndex, field.fieldName)">
+                            {{ saving ? '...' : '✓' }}
+                          </button>
+                          <button class="btn-cancel btn-sm" (click)="cancelEdit()">✗</button>
                         </div>
                       </ng-container>
                     </div>
                   </div>
+
+                  <!-- Images & Diagrams sub-section -->
+                  <div *ngIf="section.imageDescriptions && section.imageDescriptions.length > 0" class="image-descriptions-panel">
+                    <div class="image-descriptions-header">
+                      🖼 Images &amp; Diagrams ({{ section.imageDescriptions.length }})
+                    </div>
+                    <div *ngFor="let img of section.imageDescriptions; let imgIdx = index" class="image-desc-card" [class.corrected]="!!img.correctedDescription">
+                      <div class="image-desc-top">
+                        <span class="image-desc-name">{{ img.figureName }}</span>
+                        <span [class]="'badge ' + img.confidenceCategory" style="font-size: 0.68rem;">
+                          {{ (img.confidence * 100).toFixed(1) }}%
+                        </span>
+                        <span *ngIf="img.correctedDescription" class="image-approved-badge">✎ Edited</span>
+                      </div>
+                      <p class="image-desc-text">{{ img.correctedDescription || img.description }}</p>
+                      <div *ngIf="img.correctedDescription" class="image-original-text">
+                        <small>Original: {{ img.description }}</small>
+                      </div>
+                      <div class="image-desc-actions">
+                        <ng-container *ngIf="editingImage?.sectionIndex !== section.sectionIndex || editingImage?.figureName !== img.figureName">
+                          <button class="btn-edit btn-sm" (click)="startEditImage(section.sectionIndex, img)">
+                            {{ img.correctedDescription ? 'Re-edit' : 'Edit' }}
+                          </button>
+                        </ng-container>
+                        <ng-container *ngIf="editingImage?.sectionIndex === section.sectionIndex && editingImage?.figureName === img.figureName">
+                          <div class="edit-inline image-edit-inline">
+                            <textarea [(ngModel)]="editImageValue" class="edit-textarea" rows="3"
+                                      (keydown.control.enter)="saveEditImage(section.sectionIndex, img.figureName)"></textarea>
+                            <div class="edit-actions">
+                              <button class="btn-save btn-sm" [disabled]="savingImage" (click)="saveEditImage(section.sectionIndex, img.figureName)">
+                                {{ savingImage ? '...' : '✓ Save' }}
+                              </button>
+                              <button class="btn-cancel btn-sm" (click)="cancelEditImage()">✗ Cancel</button>
+                            </div>
+                          </div>
+                        </ng-container>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            </ng-container>
+
+            <ng-template #jsonTab>
+              <div class="json-panel">
+                <div class="json-panel-header">
+                  <span>Stored Cosmos DB document</span>
+                  <span class="json-panel-meta">Read-only JSON payload for this review item</span>
+                </div>
+                <pre class="json-viewer">{{ (doc.rawDocument || doc) | json }}</pre>
+              </div>
+            </ng-template>
           </div>
         </div>
       </ng-container>
@@ -277,6 +308,73 @@ import { environment } from '../../../environments/environment';
       flex: 1;
       min-width: 0;
       overflow-y: auto;
+    }
+    .review-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: linear-gradient(180deg, #f5f7fb 0%, #f5f7fb 75%, rgba(245,247,251,0) 100%);
+      padding-bottom: 0.35rem;
+    }
+    .review-tab {
+      border: 1px solid #cfd8e3;
+      background: #fff;
+      color: #355070;
+      border-radius: 999px;
+      padding: 0.4rem 0.9rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    }
+    .review-tab:hover {
+      background: #edf4fb;
+      border-color: #93b7d8;
+    }
+    .review-tab.active {
+      background: #004578;
+      border-color: #004578;
+      color: #fff;
+    }
+    .json-panel {
+      background: #fff;
+      border: 1px solid #d7e1ea;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .json-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #e6edf3;
+      background: #f8fbfd;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #234;
+      flex-wrap: wrap;
+    }
+    .json-panel-meta {
+      font-size: 0.74rem;
+      font-weight: 500;
+      color: #6a7c8f;
+    }
+    .json-viewer {
+      margin: 0;
+      padding: 1rem;
+      background: #fbfdff;
+      color: #17324d;
+      font-size: 0.76rem;
+      line-height: 1.5;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: Consolas, 'Courier New', monospace;
     }
     .pdf-container {
       height: 100%;
@@ -684,6 +782,7 @@ import { environment } from '../../../environments/environment';
 })
 export class DocumentDetailPage implements OnInit {
   doc: DocumentDetail | null = null;
+  activeTab: 'review' | 'json' = 'review';
   pdfUrl: SafeResourceUrl | null = null;
   pptxViewerUrl: SafeResourceUrl | null = null;
   pptxLoading = false;

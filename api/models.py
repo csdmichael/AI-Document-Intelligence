@@ -1,7 +1,7 @@
 """Pydantic models for API request/response schemas."""
 
 from pydantic import BaseModel
-from typing import Optional
+from typing import Any, Optional
 from datetime import datetime
 
 
@@ -89,6 +89,7 @@ class DocumentDetail(BaseModel):
     reviewedBy: Optional[str] = None
     reviewedAt: Optional[str] = None
     documentType: Optional[str] = "pdf"
+    rawDocument: Optional[dict[str, Any]] = None
 
 
 class ConfidenceStats(BaseModel):

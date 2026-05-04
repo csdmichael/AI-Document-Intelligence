@@ -58,6 +58,7 @@ export interface DocumentDetail extends DocumentSummary {
   uploadedAt: string | null;
   reviewedBy: string | null;
   reviewedAt: string | null;
+  rawDocument?: Record<string, unknown> | null;
 }
 
 export interface ConfidenceStats {

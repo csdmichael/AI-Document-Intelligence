@@ -274,7 +274,8 @@ def get_document(document_id: str):
 
     if not items:
         raise HTTPException(status_code=404, detail="Document not found")
-    return items[0]
+    doc = items[0]
+    return {**doc, "rawDocument": doc}
 
 
 @app.put("/api/documents/{document_id}/sections/{section_index}/fields/{field_name}")
