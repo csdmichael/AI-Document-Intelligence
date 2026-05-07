@@ -2,7 +2,7 @@
 
 End-to-end Azure solution that generates, parses, and reviews 100 handwritten-style tax exemption PDF forms across all 50 US states using **Azure AI Document Intelligence**, stores results in **Cosmos DB**, and provides an **Angular Ionic review portal** with human-in-the-loop corrections.
 
-Built for **Garmin International, Inc.** as the purchaser entity.
+Built for tax exemption form processing and review workflows.
 
 ---
 
@@ -300,7 +300,7 @@ In the top navigation bar, select a use case from the **Use Case** dropdown:
 
 #### 📋 Tax Forms
 
-Processes **PDF** tax exemption forms (one per state, two forms per US state × 50 states = 100 forms). These are handwritten-style documents generated for Garmin International, Inc. as the purchaser entity.
+Processes **PDF** tax exemption forms (one per state, two forms per US state × 50 states = 100 forms). These are handwritten-style documents generated for a purchaser entity.
 
 | Feature | Detail |
 |---------|--------|
@@ -494,7 +494,7 @@ az role assignment create \
       "fields": [
         {
           "fieldName": "Company Name",
-          "extractedValue": "Garmin International, Inc.",
+          "extractedValue": "Example Purchaser LLC",
           "confidence": 0.95,
           "confidenceCategory": "Blue",
           "correctedValue": null,
@@ -552,12 +552,12 @@ section = cfg.get_section_name("Company Name")  # "Purchaser Information"
 
 # App settings
 port = cfg.app.api.port  # 8000
-customer = cfg.app.forms.customer_name  # "Garmin International, Inc."
+purchaser_name = "<configured purchaser name>"
 ```
 
 ---
 
-## Customer Demo Walkthrough
+## Demo Walkthrough
 
 > **Presenter**: Michael Yaacoub — Sr Solution Engineer @ Microsoft
 > **Duration**: ~20 minutes
