@@ -347,10 +347,6 @@ export class BlobFilesPage implements OnInit, OnDestroy {
     this.useCaseSub?.unsubscribe();
   }
 
-  ngOnDestroy(): void {
-    this.useCaseSub?.unsubscribe();
-  }
-
   setParseFilter(f: 'all' | 'parsed' | 'unparsed'): void {
     this.parseFilter = f;
     this.applyFilters();
