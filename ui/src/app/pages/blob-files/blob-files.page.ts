@@ -1,11 +1,12 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { IonSpinner } from '@ionic/angular/standalone';
-import { forkJoin, catchError, of } from 'rxjs';
+import { forkJoin, catchError, of, Subscription } from 'rxjs';
 import { ApiService } from '../../api.service';
 import { BlobFile, DocumentSummary, CATEGORY_COLORS } from '../../models';
+import { UseCaseService, UseCase } from '../../use-case.service';
 import { environment } from '../../../environments/environment';
 
 const PAGE_SIZE = 20;
@@ -292,8 +293,9 @@ interface BlobRow {
     }
   `],
 })
-export class BlobFilesPage implements OnInit {
+export class BlobFilesPage implements OnInit, OnDestroy {
   allRows: BlobRow[] = [];
+  useCaseRows: BlobRow[] = [];
   filteredRows: BlobRow[] = [];
   pagedRows: BlobRow[] = [];
   loading = true;
@@ -315,6 +317,9 @@ export class BlobFilesPage implements OnInit {
 
   confSegments: { label: string; count: number; color: string }[] = [];
 
+  useCase: UseCase = 'tax-forms';
+  private useCaseSub?: Subscription;
+
   private docMap = new Map<string, DocumentSummary>();
 
   private stateMap: Record<string, string> = {
@@ -331,10 +336,19 @@ export class BlobFilesPage implements OnInit {
     WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming',
   };
 
-  constructor(private api: ApiService, private router: Router) {}
+  constructor(private api: ApiService, private router: Router, private useCaseService: UseCaseService) {}
 
   ngOnInit(): void {
+    this.useCase = this.useCaseService.useCase;
     this.loadData();
+  }
+
+  ngOnDestroy(): void {
+    this.useCaseSub?.unsubscribe();
+  }
+
+  ngOnDestroy(): void {
+    this.useCaseSub?.unsubscribe();
   }
 
   setParseFilter(f: 'all' | 'parsed' | 'unparsed'): void {
@@ -378,7 +392,7 @@ export class BlobFilesPage implements OnInit {
   }
 
   applyFilters(): void {
-    let rows = [...this.allRows];
+    let rows = [...this.useCaseRows];
 
     if (this.parseFilter === 'parsed') rows = rows.filter(r => r.parsed);
     else if (this.parseFilter === 'unparsed') rows = rows.filter(r => !r.parsed);
@@ -409,6 +423,32 @@ export class BlobFilesPage implements OnInit {
     this.pagedRows = this.filteredRows.slice(start, start + PAGE_SIZE);
   }
 
+  private updateUseCaseData(): void {
+    // Filter rows by use case: tax-forms = pdf, eng-docs = pptx
+    if (this.useCase === 'tax-forms') {
+      this.useCaseRows = this.allRows.filter(r => !r.isPptx);
+    } else {
+      this.useCaseRows = this.allRows.filter(r => r.isPptx);
+    }
+
+    this.parsedCount = this.useCaseRows.filter(r => r.parsed).length;
+    this.unparsedCount = this.useCaseRows.length - this.parsedCount;
+    this.totalSizeMB = (this.useCaseRows.reduce((s, r) => s + r.size, 0) / (1024 * 1024)).toFixed(1);
+    this.states = [...new Set(this.useCaseRows.map(r => r.stateAbbr))].sort();
+
+    // Confidence distribution
+    const cats: Record<string, number> = { Blue: 0, Green: 0, Yellow: 0, Red: 0 };
+    for (const r of this.useCaseRows) {
+      if (r.document) cats[r.document.confidenceCategory] = (cats[r.document.confidenceCategory] || 0) + 1;
+    }
+    this.confSegments = [
+      { label: 'Blue (>90%)', count: cats['Blue'], color: CATEGORY_COLORS['Blue'] },
+      { label: 'Green (80-90%)', count: cats['Green'], color: CATEGORY_COLORS['Green'] },
+      { label: 'Yellow (60-80%)', count: cats['Yellow'], color: CATEGORY_COLORS['Yellow'] },
+      { label: 'Red (<60%)', count: cats['Red'], color: CATEGORY_COLORS['Red'] },
+    ];
+  }
+
   private loadData(): void {
     this.loading = true;
     forkJoin([
@@ -436,25 +476,22 @@ export class BlobFilesPage implements OnInit {
           };
         }).sort((a, b) => a.name.localeCompare(b.name));
 
-        this.parsedCount = this.allRows.filter(r => r.parsed).length;
-        this.unparsedCount = this.allRows.length - this.parsedCount;
-        this.totalSizeMB = (this.allRows.reduce((s, r) => s + r.size, 0) / (1024 * 1024)).toFixed(1);
-        this.states = [...new Set(this.allRows.map(r => r.stateAbbr))].sort();
-
-        // Confidence distribution
-        const cats: Record<string, number> = { Blue: 0, Green: 0, Yellow: 0, Red: 0 };
-        for (const r of this.allRows) {
-          if (r.document) cats[r.document.confidenceCategory] = (cats[r.document.confidenceCategory] || 0) + 1;
-        }
-        this.confSegments = [
-          { label: 'Blue (>90%)', count: cats['Blue'], color: CATEGORY_COLORS['Blue'] },
-          { label: 'Green (80-90%)', count: cats['Green'], color: CATEGORY_COLORS['Green'] },
-          { label: 'Yellow (60-80%)', count: cats['Yellow'], color: CATEGORY_COLORS['Yellow'] },
-          { label: 'Red (<60%)', count: cats['Red'], color: CATEGORY_COLORS['Red'] },
-        ];
-
+        this.updateUseCaseData();
         this.applyFilters();
         this.loading = false;
+
+        // Subscribe to future use case changes after data is loaded
+        if (!this.useCaseSub) {
+          this.useCaseSub = this.useCaseService.useCase$.subscribe(uc => {
+            this.useCase = uc;
+            this.stateFilter = 'All';
+            this.docTypeFilter = 'All';
+            this.parseFilter = 'all';
+            this.searchTerm = '';
+            this.updateUseCaseData();
+            this.applyFilters();
+          });
+        }
       },
       error: (err) => {
         this.error = err.message || 'Failed to load blob files';

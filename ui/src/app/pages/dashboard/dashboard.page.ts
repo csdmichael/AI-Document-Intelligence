@@ -6,7 +6,7 @@ import { IonSpinner } from '@ionic/angular/standalone';
 import { forkJoin, catchError, of, Subscription } from 'rxjs';
 import { ApiService } from '../../api.service';
 import {
-  DocumentSummary, ConfidenceStats, RetrainingStatus, CustomModelStatus,
+  DocumentSummary, ConfidenceStats, RetrainingStatus,
   CATEGORY_COLORS, CATEGORY_LABELS,
 } from '../../models';
 import { UseCaseService, UseCase } from '../../use-case.service';
@@ -53,50 +53,6 @@ interface DocGroup {
                (click)="filterByCategory('All')">
             <div class="count">{{ stats.total }}</div>
             <div class="label">Total Parsed</div>
-          </div>
-        </div>
-
-        <!-- Custom Model Status Panel -->
-        <div *ngIf="customModel" class="card" style="margin-bottom: 1rem; border-left: 4px solid #7b1fa2;">
-          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
-            <div>
-              <h3 style="margin: 0 0 0.25rem; color: #7b1fa2; font-size: 0.95rem;">🤖 Custom Extraction Model</h3>
-              <div style="font-size: 0.82rem; color: #555;">
-                <span *ngIf="customModel.isAvailable" style="color: #2e7d32; font-weight: 600;">
-                  ✓ Active — {{ customModel.customModelId }}
-                </span>
-                <span *ngIf="!customModel.isAvailable && customModel.customModelId" style="color: #e65100;">
-                  ⚠ Configured but not found — {{ customModel.customModelId }}
-                </span>
-                <span *ngIf="!customModel.customModelId" style="color: #999;">
-                  Not trained yet — using <strong>{{ customModel.primaryModelId }}</strong>
-                </span>
-              </div>
-              <div style="font-size: 0.78rem; color: #888; margin-top: 0.2rem;">
-                Compare model: <code>{{ customModel.comparisonModelId }}</code>
-              </div>
-            </div>
-            <div style="display: flex; align-items: center; gap: 1rem;">
-              <div class="kpi-mini">
-                <span class="kpi-value">{{ customModel.currentReviewedDocs }}</span>
-                <span class="kpi-label">Reviewed docs</span>
-              </div>
-              <div class="kpi-mini">
-                <span class="kpi-value">{{ customModel.minimumReviewedDocs }}</span>
-                <span class="kpi-label">Required to train</span>
-              </div>
-              <div *ngIf="customModel.readyToTrain" style="font-size: 0.8rem; background: #e8f5e9; color: #2e7d32; padding: 0.3rem 0.75rem; border-radius: 12px; font-weight: 600;">
-                Ready to train
-              </div>
-              <div *ngIf="!customModel.readyToTrain" style="font-size: 0.78rem; color: #999;">
-                {{ customModel.minimumReviewedDocs - customModel.currentReviewedDocs }} more reviews needed
-              </div>
-            </div>
-          </div>
-          <div *ngIf="customModel.readyToTrain" style="margin-top: 0.6rem; font-size: 0.8rem; color: #555; background: #f3e5f5; padding: 0.5rem 0.75rem; border-radius: 6px;">
-            💡 Run <code>python -m scripts.train_custom_model</code> to train, then set
-            <code>DOC_INTELLIGENCE_CUSTOM_MODEL_ID</code>.
-            Use <code>python -m scripts.parse_documents --model &lt;id&gt; --compare</code> to compare results.
           </div>
         </div>
 
@@ -343,7 +299,6 @@ export class DashboardPage implements OnInit, OnDestroy {
   allDocs: DocumentSummary[] = [];
   stats: ConfidenceStats | null = null;
   retraining: RetrainingStatus | null = null;
-  customModel: CustomModelStatus | null = null;
   groupedDocs: DocGroup[] = [];
   loading = true;
   error = '';
@@ -516,15 +471,11 @@ export class DashboardPage implements OnInit, OnDestroy {
     this.loading = true;
     forkJoin([
       this.api.getDocuments(),
-      this.api.getConfidenceStats().pipe(catchError(() => of({ blue: 0, green: 0, yellow: 0, red: 0, total: 0 } as ConfidenceStats))),
       this.api.getRetrainingStats().pipe(catchError(() => of(null))),
-      this.api.getCustomModelStatus().pipe(catchError(() => of(null))),
     ]).subscribe({
-      next: ([docs, stats, retraining, customModel]) => {
+      next: ([docs, retraining]) => {
         this.allDocs = docs;
-        this.stats = stats;
         this.retraining = retraining;
-        this.customModel = customModel;
         this.stateNameMap = {};
         for (const d of docs) {
           if (d.state && d.stateName) this.stateNameMap[d.state] = d.stateName;
@@ -571,6 +522,18 @@ export class DashboardPage implements OnInit, OnDestroy {
     } else {
       filtered = filtered.filter(d => d.documentType === 'pptx');
     }
+
+    // Compute stats from use-case-filtered docs (before additional filters)
+    const useCaseDocs = filtered;
+    const computed: ConfidenceStats = { blue: 0, green: 0, yellow: 0, red: 0, total: useCaseDocs.length };
+    for (const d of useCaseDocs) {
+      const cat = (d.confidenceCategory || '').toLowerCase();
+      if (cat === 'blue') computed.blue++;
+      else if (cat === 'green') computed.green++;
+      else if (cat === 'yellow') computed.yellow++;
+      else if (cat === 'red') computed.red++;
+    }
+    this.stats = computed;
 
     if (this.categoryFilter !== 'All') {
       filtered = filtered.filter(d => d.confidenceCategory === this.categoryFilter);
