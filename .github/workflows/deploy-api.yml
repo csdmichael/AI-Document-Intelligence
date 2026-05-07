@@ -1,6 +1,10 @@
 name: Deploy API Backend
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'api/**'
   workflow_dispatch:
 
 permissions:

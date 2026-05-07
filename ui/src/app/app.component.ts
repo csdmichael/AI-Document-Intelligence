@@ -79,14 +79,12 @@ import { UseCaseService, UseCase } from './use-case.service';
               <ion-buttons slot="start">
                 <ion-menu-button></ion-menu-button>
               </ion-buttons>
-              <ion-title>
-                <div style="display: flex; align-items: center;">
-                  <img src="https://img.icons8.com/color/48/microsoft.png"
-                       alt="Microsoft"
-                       class="ms-logo" />
-                  AI Document Intelligence
-                </div>
-              </ion-title>
+              <ion-title>AI Document Intelligence</ion-title>
+              <img src="https://img.icons8.com/color/48/microsoft.png"
+                   alt="Microsoft"
+                   class="ms-logo"
+                   slot="end"
+                   style="margin-right: 12px;" />
             </ion-toolbar>
             <!-- Use Case filter row — always visible on all screen sizes -->
             <ion-toolbar color="primary" class="use-case-toolbar">
@@ -112,9 +110,9 @@ import { UseCaseService, UseCase } from './use-case.service';
 
           <ion-footer>
             <div class="app-footer">
-              &copy; {{ currentYear }} Michael Yaacoub - Sr Solution Engineer &#64; Microsoft |
-              <a href="https://www.github.com/csdmichael" target="_blank" rel="noopener noreferrer">GitHub</a> |
-              <a href="https://www.linkedin.com/in/michael-yaacoub-7a46436/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+              &copy; {{ currentYear }} Michael Yaacoub &#64; Microsoft |
+              LinkedIn: <a href="https://www.linkedin.com/in/michael-yaacoub-7a46436" target="_blank" rel="noopener noreferrer">michael-yaacoub-7a46436</a> |
+              GitHub: <a href="https://github.com/csdmichael" target="_blank" rel="noopener noreferrer">csdmichael</a>
             </div>
           </ion-footer>
         </div>

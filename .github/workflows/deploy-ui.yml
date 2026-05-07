@@ -1,6 +1,10 @@
 name: Deploy UI Frontend
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'ui/**'
   workflow_dispatch:
 
 permissions:

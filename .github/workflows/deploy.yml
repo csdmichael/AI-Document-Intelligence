@@ -1,6 +1,13 @@
 name: Deploy Doc Intelligence Solution (Infra + Data Pipeline)
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'infra/**'
+      - 'scripts/**'
+      - 'config/**'
+      - 'requirements.txt'
   workflow_dispatch:
 
 permissions:
