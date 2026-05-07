@@ -364,15 +364,7 @@ export class DashboardPage implements OnInit, OnDestroy {
   constructor(private api: ApiService, private router: Router, private useCaseService: UseCaseService) {}
 
   ngOnInit(): void {
-    this.useCaseSub = this.useCaseService.useCase$.subscribe(uc => {
-      this.useCase = uc;
-      this.stateFilter = 'All';
-      this.categoryFilter = 'All';
-      this.reviewFilter = 'all';
-      this.docTypeFilter = 'All';
-      this.updateStates();
-      this.applyFilters();
-    });
+    this.useCase = this.useCaseService.useCase;
     this.loadData();
   }
 
@@ -540,6 +532,19 @@ export class DashboardPage implements OnInit, OnDestroy {
         this.updateStates();
         this.applyFilters();
         this.loading = false;
+
+        // Subscribe to future use case changes after data is loaded
+        if (!this.useCaseSub) {
+          this.useCaseSub = this.useCaseService.useCase$.subscribe(uc => {
+            this.useCase = uc;
+            this.stateFilter = 'All';
+            this.categoryFilter = 'All';
+            this.reviewFilter = 'all';
+            this.docTypeFilter = 'All';
+            this.updateStates();
+            this.applyFilters();
+          });
+        }
       },
       error: (err) => {
         this.error = err.message || 'Failed to load data';
@@ -548,8 +553,12 @@ export class DashboardPage implements OnInit, OnDestroy {
     });
   }
 
+  private isTaxFormDocument(d: DocumentSummary): boolean {
+    return !d.documentType || d.documentType === 'pdf';
+  }
+
   private updateStates(): void {
-    const taxDocs = this.allDocs.filter(d => !d.documentType || d.documentType === 'pdf');
+    const taxDocs = this.allDocs.filter(d => this.isTaxFormDocument(d));
     this.states = [...new Set(taxDocs.map(d => d.state))].filter(s => !!s).sort();
   }
 
@@ -558,7 +567,7 @@ export class DashboardPage implements OnInit, OnDestroy {
 
     // Use case filter: Tax Forms = pdf, Eng Docs = pptx
     if (this.useCase === 'tax-forms') {
-      filtered = filtered.filter(d => !d.documentType || d.documentType === 'pdf');
+      filtered = filtered.filter(d => this.isTaxFormDocument(d));
     } else {
       filtered = filtered.filter(d => d.documentType === 'pptx');
     }
