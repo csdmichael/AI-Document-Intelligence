@@ -350,7 +350,7 @@ Corrections are stored in Cosmos DB alongside the original extracted values, mai
 
 ### Accuracy Optimization
 
-1. **Use the right model**: `prebuilt-document` for general form extraction; consider training a **custom model** for state-specific tax forms once you have labeled training data from corrections.
+1. **Use the right model**: `prebuilt-document` for general form extraction, which handles key-value pairs across varied tax form layouts.
 
 2. **Image quality**: Ensure scanned PDFs are at least **300 DPI**. Use preprocessing (deskew, contrast enhancement) for degraded documents.
 
@@ -364,33 +364,6 @@ Corrections are stored in Cosmos DB alongside the original extracted values, mai
 
 5. **Region-of-interest (ROI)**: When forms have a consistent layout, define specific regions to extract from, improving accuracy and reducing noise.
 
-### Continuous Improvement (Model Retraining)
-
-1. **Collect corrections**: Every human edit is stored with the original extraction, creating labeled training data.
-
-2. **Training data pipeline**:
-   - Export documents with `status: "reviewed"` or `status: "approved"` from Cosmos DB
-   - Use corrected values as ground truth labels
-   - Minimum **5 labeled samples per form type** for custom model training
-   - Target **50+ samples** for production accuracy
-
-3. **Custom model training workflow**:
-   ```bash
-   # 1. Export labeled data from Cosmos DB
-   # 2. Upload to Document Intelligence Studio
-   # 3. Label fields in Document Intelligence Studio
-   # 4. Train custom model
-   # 5. Update parse_documents.py to use custom model ID
-   # 6. Re-parse documents and compare confidence scores
-   ```
-
-4. **Model versioning**: Tag each model with a version. Compare new model confidence against the baseline before promoting to production.
-
-5. **Feedback loop metrics**:
-   - Track correction rate per field (fields corrected / total fields)
-   - Track average confidence trend over model versions
-   - Alert when correction rate exceeds threshold (e.g., >20% for a field)
-
 ### Performance at Scale
 
 1. **Batch processing**: Use async `begin_analyze_document` with polling for large batches. Process up to 15 concurrent requests per S0 tier.
@@ -399,7 +372,7 @@ Corrections are stored in Cosmos DB alongside the original extracted values, mai
 
 3. **Caching**: Cache parsed results in Cosmos DB — don't re-parse documents that haven't changed.
 
-4. **Cost optimization**: Use `prebuilt-read` for text-only extraction, `prebuilt-document` for key-value pairs, and custom models only for high-value form types.
+4. **Cost optimization**: Use `prebuilt-read` for text-only extraction and `prebuilt-document` for key-value pairs.
 
 ### Security
 

@@ -16,6 +16,8 @@ import {
   IonMenuButton,
   IonButtons,
   IonFooter,
+  IonSelect,
+  IonSelectOption,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { gridOutline, documentTextOutline, informationCircleOutline, cloudOutline } from 'ionicons/icons';
@@ -43,6 +45,8 @@ import { UseCaseService, UseCase } from './use-case.service';
     IonButtons,
     RouterOutlet,
     IonFooter,
+    IonSelect,
+    IonSelectOption,
   ],
   template: `
     <ion-app>
@@ -83,12 +87,21 @@ import { UseCaseService, UseCase } from './use-case.service';
                   AI Document Intelligence
                 </div>
               </ion-title>
-              <div slot="end" style="display: flex; align-items: center; gap: 0.5rem; padding-right: 1rem;">
-                <label style="font-size: 0.8rem; color: rgba(255,255,255,0.85); white-space: nowrap;">Use Case:</label>
-                <select class="use-case-select" [(ngModel)]="selectedUseCase" (ngModelChange)="onUseCaseChange($event)">
-                  <option value="tax-forms">📋 Tax Forms</option>
-                  <option value="eng-docs">🔧 Eng Docs</option>
-                </select>
+            </ion-toolbar>
+            <!-- Use Case filter row — always visible on all screen sizes -->
+            <ion-toolbar color="primary" class="use-case-toolbar">
+              <div class="use-case-bar">
+                <span class="use-case-label">Use Case:</span>
+                <ion-select
+                  class="use-case-ionic-select"
+                  [(ngModel)]="selectedUseCase"
+                  (ngModelChange)="onUseCaseChange($event)"
+                  interface="popover"
+                  [interfaceOptions]="{ cssClass: 'use-case-popover' }"
+                  aria-label="Use Case">
+                  <ion-select-option value="tax-forms">📋 Tax Forms</ion-select-option>
+                  <ion-select-option value="eng-docs">🔧 Eng Docs</ion-select-option>
+                </ion-select>
               </div>
             </ion-toolbar>
           </ion-header>
@@ -109,22 +122,33 @@ import { UseCaseService, UseCase } from './use-case.service';
     </ion-app>
   `,
   styles: [`
-    .use-case-select {
+    .use-case-toolbar {
+      --min-height: 38px;
+      --padding-top: 0;
+      --padding-bottom: 0;
+      border-top: 1px solid rgba(255,255,255,0.15);
+    }
+    .use-case-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0 1rem;
+    }
+    .use-case-label {
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.85);
+      white-space: nowrap;
+    }
+    .use-case-ionic-select {
+      --color: #fff;
+      --placeholder-color: rgba(255,255,255,0.85);
+      --padding-start: 0.5rem;
+      --padding-end: 0.5rem;
+      font-size: 0.82rem;
       background: rgba(255,255,255,0.15);
-      color: #fff;
       border: 1px solid rgba(255,255,255,0.4);
       border-radius: 6px;
-      padding: 0.25rem 0.5rem;
-      font-size: 0.82rem;
-      cursor: pointer;
-      outline: none;
-    }
-    .use-case-select option {
-      background: #1565c0;
-      color: #fff;
-    }
-    .use-case-select:focus {
-      border-color: rgba(255,255,255,0.8);
+      max-width: 180px;
     }
   `],
 })
