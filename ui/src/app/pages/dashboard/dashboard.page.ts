@@ -1,14 +1,15 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { IonSpinner } from '@ionic/angular/standalone';
-import { forkJoin, catchError, of } from 'rxjs';
+import { forkJoin, catchError, of, Subscription } from 'rxjs';
 import { ApiService } from '../../api.service';
 import {
   DocumentSummary, ConfidenceStats, RetrainingStatus, CustomModelStatus,
   CATEGORY_COLORS, CATEGORY_LABELS,
 } from '../../models';
+import { UseCaseService, UseCase } from '../../use-case.service';
 
 const PAGE_SIZE = 10;
 
@@ -107,8 +108,8 @@ interface DocGroup {
             <button class="filter-tab not-reviewed" [class.active]="reviewFilter === 'not-reviewed'" (click)="setReviewFilter('not-reviewed')">⬤ Not Reviewed</button>
           </div>
 
-          <!-- State Filter -->
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <!-- State Filter (Tax Forms only) -->
+          <div *ngIf="useCase === 'tax-forms'" style="display: flex; align-items: center; gap: 0.5rem;">
             <label style="font-size: 0.8rem; color: #666;">State:</label>
             <select class="state-select" [(ngModel)]="stateFilter" (ngModelChange)="applyFilters()">
               <option value="All">All States</option>
@@ -338,7 +339,7 @@ interface DocGroup {
     }
   `],
 })
-export class DashboardPage implements OnInit {
+export class DashboardPage implements OnInit, OnDestroy {
   allDocs: DocumentSummary[] = [];
   stats: ConfidenceStats | null = null;
   retraining: RetrainingStatus | null = null;
@@ -346,6 +347,7 @@ export class DashboardPage implements OnInit {
   groupedDocs: DocGroup[] = [];
   loading = true;
   error = '';
+  useCase: UseCase = 'tax-forms';
   categoryFilter = 'All';
   reviewFilter: 'all' | 'reviewed' | 'not-reviewed' = 'all';
   stateFilter = 'All';
@@ -357,11 +359,25 @@ export class DashboardPage implements OnInit {
   pageSize = PAGE_SIZE;
   selectedIds = new Set<string>();
   bulkLoading = false;
+  private useCaseSub?: Subscription;
 
-  constructor(private api: ApiService, private router: Router) {}
+  constructor(private api: ApiService, private router: Router, private useCaseService: UseCaseService) {}
 
   ngOnInit(): void {
+    this.useCaseSub = this.useCaseService.useCase$.subscribe(uc => {
+      this.useCase = uc;
+      this.stateFilter = 'All';
+      this.categoryFilter = 'All';
+      this.reviewFilter = 'all';
+      this.docTypeFilter = 'All';
+      this.updateStates();
+      this.applyFilters();
+    });
     this.loadData();
+  }
+
+  ngOnDestroy(): void {
+    this.useCaseSub?.unsubscribe();
   }
 
   openDocument(id: string): void {
@@ -521,7 +537,7 @@ export class DashboardPage implements OnInit {
         for (const d of docs) {
           if (d.state && d.stateName) this.stateNameMap[d.state] = d.stateName;
         }
-        this.states = [...new Set(docs.map(d => d.state))].filter(s => !!s).sort();
+        this.updateStates();
         this.applyFilters();
         this.loading = false;
       },
@@ -532,13 +548,25 @@ export class DashboardPage implements OnInit {
     });
   }
 
+  private updateStates(): void {
+    const taxDocs = this.allDocs.filter(d => !d.documentType || d.documentType === 'pdf');
+    this.states = [...new Set(taxDocs.map(d => d.state))].filter(s => !!s).sort();
+  }
+
   applyFilters(): void {
     let filtered = [...this.allDocs];
+
+    // Use case filter: Tax Forms = pdf, Eng Docs = pptx
+    if (this.useCase === 'tax-forms') {
+      filtered = filtered.filter(d => !d.documentType || d.documentType === 'pdf');
+    } else {
+      filtered = filtered.filter(d => d.documentType === 'pptx');
+    }
 
     if (this.categoryFilter !== 'All') {
       filtered = filtered.filter(d => d.confidenceCategory === this.categoryFilter);
     }
-    if (this.stateFilter !== 'All') {
+    if (this.useCase === 'tax-forms' && this.stateFilter !== 'All') {
       filtered = filtered.filter(d => d.state === this.stateFilter);
     }
     if (this.docTypeFilter !== 'All') {

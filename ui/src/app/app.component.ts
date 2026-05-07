@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import {
   IonApp,
   IonSplitPane,
@@ -18,6 +19,7 @@ import {
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { gridOutline, documentTextOutline, informationCircleOutline, cloudOutline } from 'ionicons/icons';
+import { UseCaseService, UseCase } from './use-case.service';
 
 @Component({
   selector: 'app-root',
@@ -25,6 +27,7 @@ import { gridOutline, documentTextOutline, informationCircleOutline, cloudOutlin
   imports: [
     RouterLink,
     RouterLinkActive,
+    FormsModule,
     IonApp,
     IonSplitPane,
     IonMenu,
@@ -80,6 +83,13 @@ import { gridOutline, documentTextOutline, informationCircleOutline, cloudOutlin
                   AI Document Intelligence
                 </div>
               </ion-title>
+              <div slot="end" style="display: flex; align-items: center; gap: 0.5rem; padding-right: 1rem;">
+                <label style="font-size: 0.8rem; color: rgba(255,255,255,0.85); white-space: nowrap;">Use Case:</label>
+                <select class="use-case-select" [(ngModel)]="selectedUseCase" (ngModelChange)="onUseCaseChange($event)">
+                  <option value="tax-forms">📋 Tax Forms</option>
+                  <option value="eng-docs">🔧 Eng Docs</option>
+                </select>
+              </div>
             </ion-toolbar>
           </ion-header>
 
@@ -98,11 +108,35 @@ import { gridOutline, documentTextOutline, informationCircleOutline, cloudOutlin
       </ion-split-pane>
     </ion-app>
   `,
+  styles: [`
+    .use-case-select {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.4);
+      border-radius: 6px;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.82rem;
+      cursor: pointer;
+      outline: none;
+    }
+    .use-case-select option {
+      background: #1565c0;
+      color: #fff;
+    }
+    .use-case-select:focus {
+      border-color: rgba(255,255,255,0.8);
+    }
+  `],
 })
 export class AppComponent {
   currentYear = new Date().getFullYear();
+  selectedUseCase: UseCase = 'tax-forms';
 
-  constructor() {
+  constructor(private useCaseService: UseCaseService) {
     addIcons({ gridOutline, documentTextOutline, informationCircleOutline, cloudOutline });
+  }
+
+  onUseCaseChange(value: UseCase): void {
+    this.useCaseService.setUseCase(value);
   }
 }
